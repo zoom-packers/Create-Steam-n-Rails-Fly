@@ -22,7 +22,8 @@ import com.zurrtum.create.content.trains.entity.Train;
 import com.zurrtum.create.content.trains.graph.DimensionPalette;
 import com.zurrtum.create.infrastructure.packet.s2c.AddTrainPacket;
 import io.netty.buffer.Unpooled;
-import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
+import net.neoforged.neoforge.common.NeoForge;
+import net.neoforged.neoforge.event.server.ServerStartedEvent;
 import net.minecraft.nbt.NbtOps;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.RegistryFriendlyByteBuf;
@@ -46,7 +47,7 @@ public final class ShadowRealmRuntimeChecks {
             return;
         }
         registered = true;
-        ServerLifecycleEvents.SERVER_STARTED.register(ShadowRealmRuntimeChecks::run);
+        NeoForge.EVENT_BUS.addListener(ServerStartedEvent.class, event -> ShadowRealmRuntimeChecks.run(event.getServer())); // NeoForge
     }
 
     private static void run(MinecraftServer server) {

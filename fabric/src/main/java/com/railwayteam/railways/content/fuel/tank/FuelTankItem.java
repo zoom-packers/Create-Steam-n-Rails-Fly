@@ -49,17 +49,13 @@ public class FuelTankItem extends BlockItem {
         return result;
     }
 
+    // 26.3: BlockItem#updateCustomBlockEntityTag is static; fix the stack before it is applied (as Create's FluidTankItem)
     @Override
-    protected boolean updateCustomBlockEntityTag(
-        BlockPos pos,
-        Level level,
-        @Nullable Player player,
-        ItemStack stack,
-        BlockState state
-    ) {
-        MinecraftServer server = level.getServer();
+    protected boolean placeBlock(BlockPlaceContext context, BlockState state) {
+        ItemStack stack = context.getItemInHand();
+        MinecraftServer server = context.getLevel().getServer();
         if (server == null) {
-            return false;
+            return super.placeBlock(context, state);
         }
 
         TypedEntityData<BlockEntityType<?>> data = stack.get(DataComponents.BLOCK_ENTITY_DATA);
@@ -77,7 +73,7 @@ public class FuelTankItem extends BlockItem {
                 TypedEntityData.of(((IBE<?>) getBlock()).getBlockEntityType(), nbt)
             );
         }
-        return super.updateCustomBlockEntityTag(pos, level, player, stack, state);
+        return super.placeBlock(context, state);
     }
 
     private static void capStoredFluid(MinecraftServer server, CompoundTag nbt, String key) {

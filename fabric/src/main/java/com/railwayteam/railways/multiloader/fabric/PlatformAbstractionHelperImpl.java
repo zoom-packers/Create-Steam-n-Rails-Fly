@@ -3,6 +3,7 @@ package com.railwayteam.railways.multiloader.fabric;
 import com.mojang.brigadier.arguments.ArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.zurrtum.create.Create;
+import com.zurrtum.create.foundation.utility.FuelHelper;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.Item;
@@ -10,7 +11,7 @@ import net.minecraft.world.item.Item;
 public class PlatformAbstractionHelperImpl {
     public static int getBurnTime(Item item) {
         if (Create.SERVER != null) {
-            return Create.SERVER.fuelValues().burnDuration(new ItemStack(item));
+            return FuelHelper.burnDuration(Create.SERVER.overworld(), null, new ItemStack(item)); // 26.3: no FuelValues
         }
         // The remote client has no server-side FuelValues table. Preserve the
         // vanilla liquid-fuel case and let the authoritative server validate modded fuels.

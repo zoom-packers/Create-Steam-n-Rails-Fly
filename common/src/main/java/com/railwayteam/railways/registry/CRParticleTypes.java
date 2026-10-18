@@ -60,7 +60,7 @@ public enum CRParticleTypes {
 	@Environment(EnvType.CLIENT)
 	public static void registerFactories() {
 		for (CRParticleTypes particle : values())
-			particle.entry.registerFactory(Minecraft.getInstance().particleEngine);
+			particle.entry.registerFactory(null); // NeoForge: runs before the particle engine exists; the engine is unused
 	}
 
 	private static class ParticleEntry<D extends ParticleOptions> {

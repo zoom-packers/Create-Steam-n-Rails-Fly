@@ -26,7 +26,8 @@ import com.zurrtum.create.content.trains.bogey.BogeyStyle;
 import com.zurrtum.create.content.trains.track.TrackBlock;
 import com.zurrtum.create.content.trains.track.TrackMaterial;
 import com.zurrtum.create.content.trains.track.TrackShape;
-import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
+import net.neoforged.neoforge.common.NeoForge;
+import net.neoforged.neoforge.event.server.ServerStartedEvent;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.Identifier;
@@ -51,7 +52,7 @@ public final class BogeyGaugeRuntimeChecks {
 		if (registered || !Utils.isDevEnv())
 			return;
 		registered = true;
-		ServerLifecycleEvents.SERVER_STARTED.register(BogeyGaugeRuntimeChecks::run);
+		NeoForge.EVENT_BUS.addListener(ServerStartedEvent.class, event -> BogeyGaugeRuntimeChecks.run(event.getServer())); // NeoForge
 	}
 
 	private static void run(MinecraftServer server) {

@@ -18,11 +18,12 @@
 
 package com.railwayteam.railways.api.bogeymenu.v0.fabric;
 
-import net.fabricmc.fabric.api.event.Event;
-import net.fabricmc.fabric.api.event.EventFactory;
+import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 public class BogeyMenuEvents {
-    public static final Event<EntryRegistrationEvent> ENTRY_REGISTRATION = EventFactory.createArrayBacked(EntryRegistrationEvent.class, listeners -> () -> {});
+    // NeoForge: a plain listener list instead of Fabric API's Event (upstream never fires it either)
+    public static final List<EntryRegistrationEvent> ENTRY_REGISTRATION = new CopyOnWriteArrayList<>();
 
     @FunctionalInterface
     public interface EntryRegistrationEvent {

@@ -1,9 +1,10 @@
 package com.railwayteam.railways.multiloader.fabric;
 
 import com.railwayteam.railways.multiloader.PlayerSelection;
-import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
-import net.fabricmc.fabric.api.networking.v1.PlayerLookup;
-import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
+import net.neoforged.neoforge.common.NeoForge;
+import net.neoforged.neoforge.event.server.ServerStartedEvent;
+import net.neoforged.neoforge.event.server.ServerStoppedEvent;
+import net.neoforged.neoforge.network.PacketDistributor;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
@@ -12,6 +13,7 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.block.entity.BlockEntity;
 
 import java.util.ArrayList;
@@ -23,8 +25,9 @@ public class PlayerSelectionImpl extends PlayerSelection {
     private static MinecraftServer currentServer;
 
     static {
-        ServerLifecycleEvents.SERVER_STARTED.register(server -> currentServer = server);
-        ServerLifecycleEvents.SERVER_STOPPED.register(server -> currentServer = null);
+        // NeoForge: server lifecycle events instead of Fabric's ServerLifecycleEvents
+        NeoForge.EVENT_BUS.addListener(ServerStartedEvent.class, event -> currentServer = event.getServer());
+        NeoForge.EVENT_BUS.addListener(ServerStoppedEvent.class, event -> currentServer = null);
     }
 
     /**
@@ -54,19 +57,19 @@ public class PlayerSelectionImpl extends PlayerSelection {
         CustomPacketPayload.Type<PacketSetImpl.RailwaysPayload> type = new CustomPacketPayload.Type<>(id);
         PacketSetImpl.RailwaysPayload payload = new PacketSetImpl.RailwaysPayload(type, data);
         for (ServerPlayer player : players)
-            ServerPlayNetworking.send(player, payload);
+            PacketDistributor.sendToPlayer(player, payload); // NeoForge
     }
 
     public static PlayerSelection all() {
         if (currentServer == null)
             return new PlayerSelectionImpl(Collections.emptyList());
-        return new PlayerSelectionImpl(PlayerLookup.all(currentServer));
+        return new PlayerSelectionImpl(currentServer.getPlayerList().getPlayers());
     }
 
     public static PlayerSelection allWith(Predicate<ServerPlayer> condition) {
         if (currentServer == null)
             return new PlayerSelectionImpl(Collections.emptyList());
-        return new PlayerSelectionImpl(PlayerLookup.all(currentServer).stream().filter(condition).toList());
+        return new PlayerSelectionImpl(currentServer.getPlayerList().getPlayers().stream().filter(condition).toList());
     }
 
     public static PlayerSelection of(ServerPlayer player) {
@@ -74,24 +77,31 @@ public class PlayerSelectionImpl extends PlayerSelection {
     }
 
     public static PlayerSelection tracking(Entity entity) {
-        return new PlayerSelectionImpl(PlayerLookup.tracking(entity));
+        return new PlayerSelectionImpl(trackingPlayers(entity));
     }
 
     public static PlayerSelection trackingWith(Entity entity, Predicate<ServerPlayer> condition) {
-        return new PlayerSelectionImpl(PlayerLookup.tracking(entity).stream().filter(condition).toList());
+        return new PlayerSelectionImpl(trackingPlayers(entity).stream().filter(condition).toList());
     }
 
     public static PlayerSelection tracking(BlockEntity be) {
-        return new PlayerSelectionImpl(PlayerLookup.tracking(be));
+        return be.getLevel() instanceof ServerLevel level ? tracking(level, be.getBlockPos()) : new PlayerSelectionImpl(Collections.emptyList());
     }
 
     public static PlayerSelection tracking(ServerLevel level, BlockPos pos) {
-        return new PlayerSelectionImpl(PlayerLookup.tracking(level, pos));
+        return new PlayerSelectionImpl(level.getChunkSource().chunkMap.getPlayers(ChunkPos.containing(pos), false));
     }
 
     public static PlayerSelection trackingAndSelf(ServerPlayer player) {
-        ArrayList<ServerPlayer> players = new ArrayList<>(PlayerLookup.tracking(player));
+        ArrayList<ServerPlayer> players = new ArrayList<>(trackingPlayers(player));
         players.add(player);
         return new PlayerSelectionImpl(players);
+    }
+
+    // NeoForge: replaces Fabric's PlayerLookup.tracking(entity): the players this entity is sent to
+    private static Collection<ServerPlayer> trackingPlayers(Entity entity) {
+        if (entity.level() instanceof ServerLevel level)
+            return level.getChunkSource().chunkMap.getPlayersWatching(entity);
+        return Collections.emptyList();
     }
 }

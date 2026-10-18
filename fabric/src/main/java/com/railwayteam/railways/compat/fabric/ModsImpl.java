@@ -18,11 +18,12 @@
 
 package com.railwayteam.railways.compat.fabric;
 
-import net.fabricmc.loader.api.FabricLoader;
+import com.zurrtum.create.neoforge.Platform;
 import org.jetbrains.annotations.Nullable;
 
 public class ModsImpl {
     public static boolean isModLoaded(String id, @Nullable String fabricId) {
-        return FabricLoader.getInstance().isModLoaded(fabricId != null ? fabricId : id);
+        // NeoForge: Create's Platform reads the loading mod list, so this also works during vanilla bootstrap
+        return Platform.isModLoaded(id);
     }
 }

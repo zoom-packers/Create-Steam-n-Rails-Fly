@@ -56,10 +56,7 @@ import javax.annotation.ParametersAreNonnullByDefault;
 @ParametersAreNonnullByDefault
 @MethodsReturnNonnullByDefault
 public abstract class TrackBufferBlock<BE extends TrackBufferBlockEntity> extends HorizontalDirectionalBlock implements IBE<BE>, IWrenchable, ProperWaterloggedBlock {
-    @SuppressWarnings({"rawtypes", "unchecked"})
-    protected MapCodec<? extends HorizontalDirectionalBlock> codec() {
-        return (MapCodec) Block.CODEC;
-    }
+    // 26.3: blocks no longer have codecs
 
 
 	public static final BooleanProperty DIAGONAL = BooleanProperty.create("diagonal");

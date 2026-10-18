@@ -2,7 +2,8 @@ package com.railwayteam.railways.util.fabric;
 
 import com.zurrtum.create.content.trains.entity.Train;
 import com.zurrtum.create.infrastructure.packet.s2c.HonkReturnPacket;
-import net.fabricmc.loader.api.FabricLoader;
+import com.zurrtum.create.neoforge.Platform;
+import net.neoforged.fml.loading.FMLPaths;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.chunk.LevelChunk;
@@ -11,11 +12,11 @@ import java.nio.file.Path;
 
 public class UtilsImpl {
     public static Path configDir() {
-        return FabricLoader.getInstance().getConfigDir();
+        return Platform.getConfigDir(); // NeoForge
     }
 
     public static boolean isDevEnv() {
-        return FabricLoader.getInstance().isDevelopmentEnvironment();
+        return Platform.isDevelopmentEnvironment(); // NeoForge
     }
 
     public static void sendHonkPacket(Level level, Train train, boolean isHonk) {
@@ -29,6 +30,6 @@ public class UtilsImpl {
     }
 
     public static Path modsDir() {
-        return FabricLoader.getInstance().getGameDir().resolve("mods");
+        return FMLPaths.MODSDIR.get(); // NeoForge
     }
 }

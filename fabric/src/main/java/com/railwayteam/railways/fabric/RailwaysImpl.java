@@ -33,10 +33,12 @@ import com.railwayteam.railways.registry.fabric.CRBlockEntitiesImpl;
 import com.railwayteam.railways.registry.fabric.CRBlocksImpl;
 import com.railwayteam.railways.registry.fabric.CRMountedStorageTypesImpl;
 import com.railwayteam.railways.registry.fabric.CRParticleTypesParticleEntryImpl;
-import net.fabricmc.api.ModInitializer;
-import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
+import net.minecraft.commands.Commands;
+import net.neoforged.neoforge.common.NeoForge;
+import net.neoforged.neoforge.event.RegisterCommandsEvent;
 
-public class RailwaysImpl implements ModInitializer {
+// NeoForge: run by neoforge.RailwaysNeoForge in the first RegisterEvent, while NeoForge has every registry unfrozen
+public class RailwaysImpl {
 	public void onInitialize() {
 		RailwaysCreateRegisterPlugin.verifyEarlyRegistrationComplete();
 		PlayerSelectionImpl.init();
@@ -58,7 +60,8 @@ public class RailwaysImpl implements ModInitializer {
 	}
 
 	public static void registerCommands(CommandRegistrar registrar) {
-		CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> registrar.register(dispatcher, environment.includeDedicated, registryAccess));
+		NeoForge.EVENT_BUS.addListener(RegisterCommandsEvent.class, event -> registrar.register(event.getDispatcher(),
+			event.getCommandSelection() != Commands.CommandSelection.INTEGRATED, event.getBuildContext()));
 	}
 
 	public static void platformBasedRegistration() {

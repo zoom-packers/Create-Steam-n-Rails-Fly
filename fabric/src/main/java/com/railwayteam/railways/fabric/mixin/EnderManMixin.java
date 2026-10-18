@@ -20,7 +20,7 @@ package com.railwayteam.railways.fabric.mixin;
 
 import com.llamalad7.mixinextras.sugar.Local;
 import com.railwayteam.railways.registry.CRItems;
-import net.minecraft.world.entity.monster.EnderMan;
+import net.minecraft.world.entity.monster.Enderman;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import org.spongepowered.asm.mixin.Mixin;
@@ -28,7 +28,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-@Mixin(EnderMan.class)
+@Mixin(Enderman.class)
 public class EnderManMixin {
 	@Inject(
 			method = "isLookingAtMe",

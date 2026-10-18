@@ -62,7 +62,6 @@ import javax.annotation.ParametersAreNonnullByDefault;
 @ParametersAreNonnullByDefault
 @MethodsReturnNonnullByDefault
 public class HeadstockBlock extends HorizontalDirectionalBlock implements IBE<HeadstockBlockEntity>, IWrenchable, ProperWaterloggedBlock, BlockStateBlockItemGroup.GroupedBlock {
-    public static final MapCodec<HeadstockBlock> CODEC = simpleCodec(HeadstockBlock::new);
     public static final EnumProperty<HeadstockStyle> STYLE = EnumProperty.create("style", HeadstockStyle.class);
     public static final BooleanProperty UPSIDE_DOWN = BooleanProperty.create("upside_down");
 
@@ -75,9 +74,7 @@ public class HeadstockBlock extends HorizontalDirectionalBlock implements IBE<He
             .setValue(UPSIDE_DOWN, false)
         );
     }
-    protected MapCodec<? extends HorizontalDirectionalBlock> codec() {
-        return CODEC;
-    }
+    // 26.3: blocks no longer have codecs
 
     protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
         super.createBlockStateDefinition(builder.add(FACING, WATERLOGGED, STYLE, UPSIDE_DOWN));

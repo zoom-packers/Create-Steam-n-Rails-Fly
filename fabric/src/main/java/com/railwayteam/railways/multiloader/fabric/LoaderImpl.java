@@ -22,6 +22,6 @@ import com.railwayteam.railways.multiloader.Loader;
 
 public class LoaderImpl {
 	public static Loader getCurrent() {
-		return Loader.FABRIC;
+		return Loader.NEOFORGE; // NeoForge
 	}
 }

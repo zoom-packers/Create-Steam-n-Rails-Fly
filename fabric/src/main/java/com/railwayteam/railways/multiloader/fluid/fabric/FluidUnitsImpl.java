@@ -19,12 +19,12 @@
 package com.railwayteam.railways.multiloader.fluid.fabric;
 
 import com.railwayteam.railways.annotation.multiloader.ImplClass;
-import net.fabricmc.fabric.api.transfer.v1.fluid.FluidConstants;
+import com.zurrtum.create.infrastructure.fluids.BucketFluidInventory;
 
 @ImplClass
 public class FluidUnitsImpl {
     @SuppressWarnings("UnstableApiUsage")
     public static long bucket() {
-        return FluidConstants.BUCKET;
+        return BucketFluidInventory.CAPACITY; // NeoForge: Create Fly keeps Fabric's 81000 units per bucket
     }
 }

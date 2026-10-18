@@ -18,52 +18,14 @@
 
 package com.railwayteam.railways.content.conductor.fabric;
 
-import com.mojang.blaze3d.vertex.PoseStack;
-import com.railwayteam.railways.content.conductor.ConductorCapLayer;
-import com.railwayteam.railways.content.conductor.ConductorCapItem;
-import com.railwayteam.railways.content.conductor.ConductorCapModel;
-import com.railwayteam.railways.registry.CRItems;
-import com.railwayteam.railways.internal.compat.registrate.util.entry.ItemEntry;
-import net.fabricmc.fabric.api.client.rendering.v1.ArmorRenderer;
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.model.Model;
-import net.minecraft.client.model.HumanoidModel;
-import net.minecraft.client.renderer.SubmitNodeCollector;
-import net.minecraft.client.renderer.entity.LivingEntityRenderer;
-import net.minecraft.client.renderer.entity.state.HumanoidRenderState;
-import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.entity.EquipmentSlot;
-import net.minecraft.world.item.ItemStack;
+import net.neoforged.bus.api.IEventBus;
 
-public class ConductorCapItemRenderer implements ArmorRenderer {
-	public static void register() {
-		ArmorRenderer renderer = new ConductorCapItemRenderer();
-		for (ItemEntry<ConductorCapItem> entry : CRItems.ITEM_CONDUCTOR_CAP.values()) {
-			ConductorCapItem item = entry.get();
-			ArmorRenderer.register(renderer, item);
-		}
-	}
-
-	@Override
-	@SuppressWarnings({"rawtypes", "unchecked"})
-	public void render(PoseStack matrices, SubmitNodeCollector submitter, ItemStack stack, HumanoidRenderState state,
-					   EquipmentSlot slot, int light, HumanoidModel<HumanoidRenderState> contextModel) {
-		if (!(stack.getItem() instanceof ConductorCapItem cap))
-			return;
-
-		ConductorCapModel<?> model = new ConductorCapModel<>(
-			Minecraft.getInstance().getEntityModels().bakeLayer(ConductorCapModel.LAYER_LOCATION));
-		matrices.pushPose();
-		contextModel.getHead().translateAndRotate(matrices);
-		// Match the conductor entity cap: render in head-local space so pitch, yaw, and roll all follow the head.
-		matrices.translate(0.0F, 0.0F, -0.25F / 16.0F);
-		submitter.submitModel((Model) model, state, matrices, ConductorCapLayer.entityCutoutNoCull(cap.textureId),
-			light, LivingEntityRenderer.getOverlayCoords(state, 0), -1, null);
-		matrices.popPose();
-	}
-
-	@Override
-	public boolean shouldRenderDefaultHeadItem(LivingEntity entity, ItemStack stack) {
-		return false;
+/**
+ * NeoForge (ZP5 port): upstream drew conductor caps worn by players through Fabric API's ArmorRenderer, which has no
+ * NeoForge counterpart. TODO(neoforge 26.3): a player render layer (EntityRenderersEvent.AddLayers) or an equipment
+ * asset. Until then a worn cap is not drawn on players; conductors still draw theirs (ConductorCapLayer).
+ */
+public class ConductorCapItemRenderer {
+	public static void register(IEventBus modBus) {
 	}
 }

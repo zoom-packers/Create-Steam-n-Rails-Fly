@@ -18,45 +18,31 @@
 
 package com.railwayteam.railways.util.fabric;
 
-import com.google.common.collect.HashMultimap;
-import com.google.common.collect.Multimap;
 import com.railwayteam.railways.util.RegistrationListening.Listener;
-import net.fabricmc.fabric.api.event.registry.RegistryEntryAddedCallback;
-import net.minecraft.core.Registry;
-import net.minecraft.resources.Identifier;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Set;
+import java.util.ArrayList;
+import java.util.List;
 
+/**
+ * NeoForge: Fabric's RegistryEntryAddedCallback has no NeoForge counterpart. Entries registered already are reported
+ * at once; the rest are checked again by {@link #flush()} after registration ends (common setup).
+ */
 public class RegistrationListeningImpl {
-	private static final Map<Registry<?>, Callback<?>> callbacks = new HashMap<>();
+	private static final List<Listener<?>> pending = new ArrayList<>();
 
-	public static <T> void addListener(Listener<T> listener) {
-		//noinspection unchecked,rawtypes
-		callbacks.computeIfAbsent(listener.registry(), Callback::new).addListener((Listener) listener);
+	public static synchronized <T> void addListener(Listener<T> listener) {
+		if (!tryFire(listener))
+			pending.add(listener);
 	}
 
-	private static class Callback<T> implements RegistryEntryAddedCallback<T> {
-		private final Multimap<Identifier, Listener<T>> listeners = HashMultimap.create();
-		private final Registry<T> registry;
-		private final Set<Identifier> beforeListeningStart;
+	public static synchronized void flush() {
+		pending.removeIf(RegistrationListeningImpl::tryFire);
+	}
 
-		public Callback(Registry<T> registry) {
-			this.registry = registry;
-			RegistryEntryAddedCallback.event(registry).register(this);
-			beforeListeningStart = registry.keySet(); // returns unmodifiable set
-		}
-
-		protected void addListener(Listener<T> listener) {
-			Identifier id = listener.id();
-			// if already registered, don't store it
-			if (beforeListeningStart.contains(id))
-				listener.onRegister(registry.getValue(id));
-			else listeners.put(id, listener);
-		}
-		public void onEntryAdded(int rawId, Identifier id, T object) {
-			listeners.get(id).forEach(listener -> listener.onRegister(object));
-		}
+	private static <T> boolean tryFire(Listener<T> listener) {
+		if (!listener.registry().containsKey(listener.id()))
+			return false;
+		listener.onRegister(listener.registry().getValue(listener.id()));
+		return true;
 	}
 }

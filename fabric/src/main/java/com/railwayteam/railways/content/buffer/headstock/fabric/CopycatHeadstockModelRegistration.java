@@ -27,13 +27,16 @@ import com.railwayteam.railways.content.buffer.single_deco.GenericDyeableSingleB
 import com.railwayteam.railways.content.buffer.single_deco.LinkPinBlock;
 import com.railwayteam.railways.content.custom_tracks.generic_crossing.GenericCrossingBlock;
 import com.railwayteam.railways.content.custom_tracks.generic_crossing.fabric.GenericCrossingModel;
-import net.fabricmc.fabric.api.client.model.loading.v1.ModelLoadingPlugin;
-import net.minecraft.client.renderer.item.CuboidItemModelWrapper;
+import com.zurrtum.create.client.AllModels;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.state.BlockState;
 
+/**
+ * NeoForge (ZP5 port): upstream wrapped these block models with Fabric API's ModelLoadingPlugin. Create Fly's NeoForge
+ * port applies {@link AllModels} resolvers at the same point (before baking), so the wrappers are registered there.
+ * TODO(neoforge 26.3): the item-model wrappers (CopycatHeadstockBlockStateModel/BufferModel.UnbakedItemModel) have
+ * no NeoForge hook yet; those items render with their plain JSON model.
+ */
 public class CopycatHeadstockModelRegistration {
 	private static boolean registered;
 
@@ -41,32 +44,16 @@ public class CopycatHeadstockModelRegistration {
 		if (registered)
 			return;
 		registered = true;
-
-		ModelLoadingPlugin.register(context -> {
-			context.modifyBlockModelBeforeBake().register((model, modifierContext) -> {
-				BlockState state = modifierContext.state();
-				Block block = state.getBlock();
-				if (block instanceof CopycatHeadstockBlock)
-					return new CopycatHeadstockBlockStateModel(state, model);
-				if (block instanceof CopycatHeadstockBarsBlock)
-					return new CopycatHeadstockBarsModel(state, model);
-				if (block instanceof GenericCrossingBlock)
-					return new GenericCrossingModel(state, model);
-				if (isBufferBlock(block))
-					return new BufferModel(state, model);
-				return model;
-			});
-
-			context.modifyItemModelBeforeBake().register((model, modifierContext) -> {
-				if (!(model instanceof CuboidItemModelWrapper.Unbaked cuboid))
-					return model;
-				if (!(BuiltInRegistries.ITEM.getValue(modifierContext.itemId()) instanceof BlockItem blockItem))
-					return model;
-				if (blockItem.getBlock() instanceof CopycatHeadstockBlock)
-					return new CopycatHeadstockBlockStateModel.UnbakedItemModel(cuboid);
-				return isBufferBlock(blockItem.getBlock()) ? new BufferModel.UnbakedItemModel(cuboid) : model;
-			});
-		});
+		for (Block block : BuiltInRegistries.BLOCK) {
+			if (block instanceof CopycatHeadstockBlock)
+				AllModels.register(block, CopycatHeadstockBlockStateModel::new);
+			else if (block instanceof CopycatHeadstockBarsBlock)
+				AllModels.register(block, CopycatHeadstockBarsModel::new);
+			else if (block instanceof GenericCrossingBlock)
+				AllModels.register(block, GenericCrossingModel::new);
+			else if (isBufferBlock(block))
+				AllModels.register(block, BufferModel::new);
+		}
 	}
 
 	private static boolean isBufferBlock(Block block) {

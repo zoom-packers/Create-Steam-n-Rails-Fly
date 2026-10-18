@@ -57,10 +57,7 @@ import javax.annotation.ParametersAreNonnullByDefault;
 @ParametersAreNonnullByDefault
 @MethodsReturnNonnullByDefault
 public abstract class AbstractDyeableSingleBufferBlock extends HorizontalDirectionalBlock implements IBE<DyeableBlockEntity>, IWrenchable, ProperWaterloggedBlock {
-    @SuppressWarnings({"rawtypes", "unchecked"})
-    protected MapCodec<? extends HorizontalDirectionalBlock> codec() {
-        return (MapCodec) Block.CODEC;
-    }
+    // 26.3: blocks no longer have codecs
 
     public AbstractDyeableSingleBufferBlock(Properties properties) {
         super(properties);

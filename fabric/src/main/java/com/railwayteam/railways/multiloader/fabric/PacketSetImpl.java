@@ -27,9 +27,10 @@ import io.netty.buffer.Unpooled;
 import it.unimi.dsi.fastutil.objects.Object2IntMap;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
-import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
-import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
+import net.neoforged.neoforge.client.network.ClientPacketDistributor;
+import net.neoforged.neoforge.client.network.event.RegisterClientPayloadHandlersEvent;
+import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
+import net.neoforged.neoforge.network.registration.PayloadRegistrar;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.RegistryFriendlyByteBuf;
@@ -42,34 +43,52 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
 import org.jetbrains.annotations.ApiStatus.Internal;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Function;
 
 public class PacketSetImpl extends PacketSet {
+	// NeoForge: payload types are registered in RegisterPayloadHandlersEvent, after the sets are built
+	private static final List<PacketSetImpl> SETS = new ArrayList<>();
+
 	protected PacketSetImpl(String id, int version,
 							List<Function<FriendlyByteBuf, S2CPacket>> s2cPackets,
 							Object2IntMap<Class<? extends S2CPacket>> s2cTypes,
 							List<Function<FriendlyByteBuf, C2SPacket>> c2sPackets,
 							Object2IntMap<Class<? extends C2SPacket>> c2sTypes) {
 		super(id, version, s2cPackets, s2cTypes, c2sPackets, c2sTypes);
-		PayloadTypeRegistry.clientboundPlay().register(payloadType(s2cPacket), RailwaysPayload.STREAM_CODEC);
-		PayloadTypeRegistry.serverboundPlay().register(payloadType(c2sPacket), RailwaysPayload.STREAM_CODEC);
+		SETS.add(this);
 	}
 
+	/** NeoForge: registers every set's two payload types and the server-side handler (mod bus). */
+	public static void registerPayloads(RegisterPayloadHandlersEvent event) {
+		for (PacketSetImpl set : SETS) {
+			PayloadRegistrar registrar = event.registrar(set.id).versioned(Integer.toString(set.version));
+			registrar.playToClient(payloadType(set.s2cPacket), RailwaysPayload.STREAM_CODEC);
+			registrar.playToServer(payloadType(set.c2sPacket), RailwaysPayload.STREAM_CODEC, (payload, context) ->
+				set.handleC2SPacket((ServerPlayer) context.player(), payload.toBuffer()));
+		}
+	}
+
+	/** NeoForge: registers the client-side handlers (mod bus, client only). */
+	@Environment(EnvType.CLIENT)
+	public static void registerClientHandlers(RegisterClientPayloadHandlersEvent event) {
+		for (PacketSetImpl set : SETS)
+			event.register(payloadType(set.s2cPacket), (payload, context) ->
+				set.handleS2CPacket(Minecraft.getInstance(), payload.toBuffer()));
+	}
+
+	// NeoForge: listeners are registered by registerPayloads / registerClientHandlers
 	@Environment(EnvType.CLIENT)
 	public void registerS2CListener() {
-		ClientPlayNetworking.registerGlobalReceiver(payloadType(s2cPacket), (payload, context) ->
-			handleS2CPacket(context.client(), payload.toBuffer()));
 	}
 
 	public void registerC2SListener() {
-		ServerPlayNetworking.registerGlobalReceiver(payloadType(c2sPacket), (payload, context) ->
-			handleC2SPacket(context.player(), payload.toBuffer()));
 	}
 
 	@Environment(EnvType.CLIENT)
 	protected void doSendC2S(FriendlyByteBuf buf) {
-		ClientPlayNetworking.send(new RailwaysPayload(payloadType(c2sPacket), copyBytes(buf)));
+		ClientPacketDistributor.sendToServer(new RailwaysPayload(payloadType(c2sPacket), copyBytes(buf)));
 	}
 
 	public void send(Packet<? super ServerGamePacketListener> packet) {

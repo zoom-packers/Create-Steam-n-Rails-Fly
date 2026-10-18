@@ -19,20 +19,21 @@
 package com.railwayteam.railways.multiloader.fabric;
 
 import com.railwayteam.railways.Railways;
-import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
+import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.SharedSuggestionProvider;
 import net.minecraft.network.chat.Component;
 
 public class ClientCommandsImpl {
 	public static void sendSuccess(SharedSuggestionProvider provider, Component text) {
-		if (provider instanceof FabricClientCommandSource fabric)
-			fabric.sendFeedback(text);
+		// NeoForge: client commands run with a CommandSourceStack (RegisterClientCommandsEvent)
+		if (provider instanceof CommandSourceStack source)
+			source.sendSuccess(() -> text, false);
 		else Railways.LOGGER.error("Invalid command source: " + provider);
 	}
 
 	public static void sendFailure(SharedSuggestionProvider provider, Component text) {
-		if (provider instanceof FabricClientCommandSource fabric)
-			fabric.sendError(text);
+		if (provider instanceof CommandSourceStack source)
+			source.sendFailure(text);
 		else Railways.LOGGER.error("Invalid command source: " + provider);
 	}
 }

@@ -26,16 +26,13 @@ import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.block.state.properties.BooleanProperty;
 
 public class CopycatHeadstockBarsBlock extends HorizontalDirectionalBlock {
-    public static final MapCodec<CopycatHeadstockBarsBlock> CODEC = simpleCodec(CopycatHeadstockBarsBlock::new);
     public static final BooleanProperty UPSIDE_DOWN = CopycatHeadstockBlock.UPSIDE_DOWN;
 
     public CopycatHeadstockBarsBlock(Properties properties) {
         super(properties);
         registerDefaultState(defaultBlockState().setValue(UPSIDE_DOWN, false));
     }
-    protected MapCodec<? extends HorizontalDirectionalBlock> codec() {
-        return CODEC;
-    }
+    // 26.3: blocks no longer have codecs
 
     protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
         super.createBlockStateDefinition(builder.add(FACING, UPSIDE_DOWN));

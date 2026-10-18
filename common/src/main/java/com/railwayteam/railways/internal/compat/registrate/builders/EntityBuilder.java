@@ -2,7 +2,8 @@ package com.railwayteam.railways.internal.compat.registrate.builders;
 
 import com.railwayteam.railways.internal.compat.registrate.Registrate;
 import com.railwayteam.railways.internal.compat.registrate.util.entry.EntityEntry;
-import net.fabricmc.fabric.api.object.builder.v1.entity.FabricDefaultAttributeRegistry;
+import com.railwayteam.railways.neoforge.RailwaysNeoForgeInit;
+import net.neoforged.neoforge.event.entity.EntityAttributeCreationEvent;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
@@ -52,8 +53,12 @@ public class EntityBuilder<T extends Entity, P> extends AbstractBuilder<EntityTy
         properties.accept(builder);
         EntityType<T> type = builder.build(key);
         owner.registerVanilla(BuiltInRegistries.ENTITY_TYPE, name, type);
-        if (attributes != null)
-            FabricDefaultAttributeRegistry.register((EntityType) type, attributes.get());
+        if (attributes != null) {
+            // NeoForge: default attributes are added in EntityAttributeCreationEvent
+            Supplier<AttributeSupplier.Builder> attributes = this.attributes;
+            RailwaysNeoForgeInit.onModBus(bus -> bus.addListener(EntityAttributeCreationEvent.class,
+                event -> event.put((EntityType) type, attributes.get().build())));
+        }
         return new EntityEntry<>(owner.id(name), type);
     }
 }

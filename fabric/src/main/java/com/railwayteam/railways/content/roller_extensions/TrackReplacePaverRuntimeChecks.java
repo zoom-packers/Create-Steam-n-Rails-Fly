@@ -25,7 +25,8 @@ import com.zurrtum.create.content.trains.track.TrackBlock;
 import com.zurrtum.create.content.trains.track.TrackBlockEntity;
 import com.zurrtum.create.content.trains.track.TrackShape;
 import com.zurrtum.create.infrastructure.items.CombinedInvWrapper;
-import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
+import net.neoforged.neoforge.common.NeoForge;
+import net.neoforged.neoforge.event.server.ServerStartedEvent;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.server.MinecraftServer;
@@ -52,7 +53,7 @@ public final class TrackReplacePaverRuntimeChecks {
             return;
         }
         registered = true;
-        ServerLifecycleEvents.SERVER_STARTED.register(TrackReplacePaverRuntimeChecks::run);
+        NeoForge.EVENT_BUS.addListener(ServerStartedEvent.class, event -> TrackReplacePaverRuntimeChecks.run(event.getServer())); // NeoForge
     }
 
     private static void run(MinecraftServer server) {

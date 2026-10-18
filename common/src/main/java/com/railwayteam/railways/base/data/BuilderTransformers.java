@@ -94,8 +94,6 @@ import net.minecraft.world.level.material.PushReaction;
 import net.minecraft.world.level.storage.loot.LootPool;
 import net.minecraft.world.level.storage.loot.LootTable;
 import net.minecraft.world.level.storage.loot.entries.LootItem;
-import net.minecraft.world.level.storage.loot.predicates.LootItemBlockStatePropertyCondition;
-import net.minecraft.world.level.storage.loot.providers.number.ConstantValue;
 import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -175,21 +173,9 @@ public class BuilderTransformers {
 
     public static <B extends Block, P> NonNullUnaryOperator<BlockBuilder<B, P>> smokestackLoot(@NotNull FusedSupplier<BlockStateBlockItemGroup<SmokestackStyle.Context, SmokestackStyle>> cycleGroupSupplier) {
         return bb -> bb
+            // 26.3: the loot builder API changed and datagen is not run in this port; the generated
+            // smokestack loot tables are checked in (common/src/generated/resources)
             .loot((t, b) -> {
-                LootTable.Builder table = LootTable.lootTable();
-                for (SmokestackStyle style : SmokestackStyle.values()) {
-                    var pool = LootPool.lootPool()
-                        .when(LootItemBlockStatePropertyCondition.hasBlockStateProperties(b)
-                            .setProperties(StatePropertiesPredicate.Builder.properties()
-                                .hasProperty(VariableSmokeStackBlock.STYLE, style)
-                            )
-                        )
-                        .setRolls(ConstantValue.exactly(1.0F))
-                        .add(LootItem.lootTableItem(cycleGroupSupplier.get().get(style)));
-                    table.withPool(t.applyExplosionCondition(b, pool));
-                }
-
-                t.add(b, table);
             });
     }
 
@@ -256,7 +242,7 @@ public class BuilderTransformers {
         return b -> b
             .transform(BuilderTransformers.locoMetalBase(color, null))
             .properties(BlockBehaviour.Properties::noOcclusion)
-            .properties(p -> p.pushReaction(PushReaction.DESTROY))
+            .properties(p -> p.pushReaction(PushReaction.POPPED))
             .onRegister(interactionBehaviour(new DoorMovingInteraction()))
             .tag(BlockTags.DOORS)
             .tag(BlockTags.WOODEN_DOORS) // for villager AI

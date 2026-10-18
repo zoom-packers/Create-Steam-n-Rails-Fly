@@ -22,15 +22,8 @@ import com.railwayteam.railways.util.Utils;
 import com.zurrtum.create.api.equipment.potatoCannon.PotatoCannonProjectileType;
 import com.zurrtum.create.api.registry.CreateRegistries;
 import com.zurrtum.create.api.registry.CreateRegistryKeys;
-import net.fabricmc.fabric.api.transfer.v1.context.ContainerItemContext;
-import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
-import net.fabricmc.fabric.api.transfer.v1.fluid.FluidStorage;
-import net.fabricmc.fabric.api.transfer.v1.fluid.FluidVariant;
-import net.fabricmc.fabric.api.transfer.v1.fluid.FluidVariantAttributes;
-import net.fabricmc.fabric.api.transfer.v1.item.ItemVariant;
-import net.fabricmc.fabric.api.transfer.v1.storage.Storage;
-import net.fabricmc.fabric.api.transfer.v1.storage.base.SingleVariantStorage;
-import net.fabricmc.fabric.api.transfer.v1.transaction.Transaction;
+import net.neoforged.neoforge.common.NeoForge;
+import net.neoforged.neoforge.event.server.ServerStartedEvent;
 import net.minecraft.core.component.DataComponentPatch;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
@@ -39,6 +32,14 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.util.Unit;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.component.CustomData;
+import net.neoforged.neoforge.capabilities.Capabilities;
+import net.neoforged.neoforge.fluids.FluidStack;
+import net.neoforged.neoforge.transfer.ResourceHandler;
+import net.neoforged.neoforge.transfer.access.ItemAccess;
+import net.neoforged.neoforge.transfer.fluid.FluidResource;
+import net.neoforged.neoforge.transfer.item.ItemResource;
+import net.neoforged.neoforge.transfer.item.ItemStacksResourceHandler;
+import net.neoforged.neoforge.transfer.transaction.Transaction;
 
 /** Development-time runtime checks for the component and Transfer API parts of paint pitchers. */
 public final class PaintPitcherRuntimeChecks {
@@ -52,7 +53,7 @@ public final class PaintPitcherRuntimeChecks {
     public static void register() {
         if (registered || !Utils.isDevEnv()) return;
         registered = true;
-        ServerLifecycleEvents.SERVER_STARTED.register(PaintPitcherRuntimeChecks::run);
+        NeoForge.EVENT_BUS.addListener(ServerStartedEvent.class, event -> PaintPitcherRuntimeChecks.run(event.getServer())); // NeoForge
     }
 
     private static void run(MinecraftServer server) {
@@ -92,42 +93,47 @@ public final class PaintPitcherRuntimeChecks {
         require(!remainingData.copyTag().contains("FillLevel"), "empty pitcher retained its fill level");
     }
 
+    // NeoForge: exercises the Capabilities.Fluid.ITEM handler that replaced Fabric's item FluidStorage
     private static void checkFluidTransfer() {
-        TestItemSlot slot = new TestItemSlot(CRItems.EMPTY_PAINT_PITCHER.asStack());
-        ContainerItemContext context = ContainerItemContext.ofSingleSlot(slot);
-        Storage<FluidVariant> storage = context.find(FluidStorage.ITEM);
-        require(storage != null, "empty pitcher has no Fabric fluid storage");
+        ItemStacksResourceHandler slot = new ItemStacksResourceHandler(1);
+        slot.set(0, ItemResource.of(CRItems.EMPTY_PAINT_PITCHER.asStack()), 1);
+        ItemAccess access = ItemAccess.forHandlerIndex(slot, 0);
+        ResourceHandler<FluidResource> storage = access.getCapability(Capabilities.Fluid.ITEM);
+        require(storage != null, "empty pitcher has no NeoForge fluid handler");
 
         CompoundTag colorTag = PaintFluid.setColor(new CompoundTag(), PalettesColor.RED);
-        FluidVariant paint = FluidVariant.of(
+        FluidResource paint = FluidResource.of(
             CRFluids.PAINT.get(),
             DataComponentPatch.builder()
                 .set(DataComponents.CUSTOM_DATA, CustomData.of(colorTag))
                 .build()
         );
+        FluidStack paintStack = paint.toStack(1000);
         require(
-            FluidVariantAttributes.getName(paint).equals(Component.translatable(PalettesColor.RED.getPaintNameId())),
-            "paint fluid attributes did not preserve the component color name"
+            paintStack.getHoverName().equals(Component.translatable(PalettesColor.RED.getPaintNameId())),
+            "paint fluid type did not preserve the component color name"
         );
-        long amount = PaintPitcherItem.FLUID_PER_LEVEL * 5;
+        int amount = PaintPitcherFluidStorage.MB_PER_LEVEL * 5;
 
-        try (Transaction transaction = Transaction.openOuter()) {
+        try (Transaction transaction = Transaction.openRoot()) {
             require(storage.insert(paint, amount, transaction) == amount, "paint insertion amount mismatch");
             transaction.commit();
         }
 
-        ItemStack filled = slot.getResource().toStack();
+        ItemStack filled = slot.getResource(0).toStack();
         PaintPitcherItem redPitcher = CRItems.PAINT_PITCHERS.get(PalettesColor.RED).get();
         require(filled.getItem() == redPitcher, "paint insertion selected the wrong pitcher item");
         require(redPitcher.getLevels(filled) == 5, "paint insertion stored the wrong fill level");
 
-        try (Transaction transaction = Transaction.openOuter()) {
+        storage = ItemAccess.forHandlerIndex(slot, 0).getCapability(Capabilities.Fluid.ITEM);
+        require(storage != null, "filled pitcher has no NeoForge fluid handler");
+        try (Transaction transaction = Transaction.openRoot()) {
             require(storage.extract(paint, amount, transaction) == amount, "paint extraction amount mismatch");
             transaction.commit();
         }
 
-        require(slot.getResource().toStack().is(CRItems.EMPTY_PAINT_PITCHER.get()),
-            "fully drained fluid storage did not produce an empty pitcher");
+        require(slot.getResource(0).toStack().is(CRItems.EMPTY_PAINT_PITCHER.get()),
+            "fully drained fluid handler did not produce an empty pitcher");
     }
 
     private static void checkCannonSplitting() {
@@ -188,22 +194,5 @@ public final class PaintPitcherRuntimeChecks {
 
     private static void require(boolean condition, String message) {
         if (!condition) throw new IllegalStateException("Paint pitcher runtime check failed: " + message);
-    }
-
-    private static final class TestItemSlot extends SingleVariantStorage<ItemVariant> {
-        private TestItemSlot(ItemStack initialStack) {
-            variant = ItemVariant.of(initialStack);
-            amount = 1;
-        }
-
-        @Override
-        protected ItemVariant getBlankVariant() {
-            return ItemVariant.blank();
-        }
-
-        @Override
-        protected long getCapacity(ItemVariant variant) {
-            return 1;
-        }
     }
 }

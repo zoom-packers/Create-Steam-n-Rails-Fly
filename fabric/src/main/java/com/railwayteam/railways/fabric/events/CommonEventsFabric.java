@@ -18,36 +18,30 @@
 
 package com.railwayteam.railways.fabric.events;
 
+import com.railwayteam.railways.Railways;
 import com.railwayteam.railways.content.fuel.LiquidFuelManager;
 import com.railwayteam.railways.events.CommonEvents;
-import com.railwayteam.railways.Railways;
-import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
-import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
-import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
-import net.fabricmc.fabric.api.resource.ResourceManagerHelper;
-import net.fabricmc.fabric.api.resource.SimpleSynchronousResourceReloadListener;
-import net.minecraft.resources.Identifier;
-import net.minecraft.server.packs.PackType;
-import net.minecraft.server.packs.resources.ResourceManager;
-import org.jetbrains.annotations.NotNull;
+import net.minecraft.server.level.ServerPlayer;
+import net.neoforged.neoforge.common.NeoForge;
+import net.neoforged.neoforge.event.AddServerReloadListenersEvent;
+import net.neoforged.neoforge.event.TagsUpdatedEvent;
+import net.neoforged.neoforge.event.entity.player.PlayerEvent;
+import net.neoforged.neoforge.event.tick.LevelTickEvent;
 
+/** NeoForge: the Fabric API lifecycle callbacks upstream used, as NeoForge game-bus listeners. */
 public class CommonEventsFabric {
 	public static void init() {
-		ServerTickEvents.START_LEVEL_TICK.register(CommonEvents::onWorldTickStart);
-		ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> CommonEvents.onPlayerJoin(handler.player));
-		ServerLifecycleEvents.END_DATA_PACK_RELOAD.register(((server, resourceManager, success) -> {
-			CommonEvents.onTagsUpdated();
-		}));
-		ResourceManagerHelper.get(PackType.SERVER_DATA).registerReloadListener(new SimpleSynchronousResourceReloadListener() {
-			@Override
-			public Identifier getFabricId() {
-				return Railways.asResource(LiquidFuelManager.ReloadListener.ID);
-			}
-
-			@Override
-			public void onResourceManagerReload(@NotNull ResourceManager resourceManager) {
-				LiquidFuelManager.ReloadListener.INSTANCE.onResourceManagerReload(resourceManager);
-			}
+		NeoForge.EVENT_BUS.addListener(LevelTickEvent.Pre.class, event -> {
+			if (!event.getLevel().isClientSide())
+				CommonEvents.onWorldTickStart(event.getLevel());
 		});
+		NeoForge.EVENT_BUS.addListener(PlayerEvent.PlayerLoggedInEvent.class, event -> {
+			if (event.getEntity() instanceof ServerPlayer player)
+				CommonEvents.onPlayerJoin(player);
+		});
+		// Fabric's END_DATA_PACK_RELOAD: tags are rebound on the server after every data pack (re)load
+		NeoForge.EVENT_BUS.addListener(TagsUpdatedEvent.ServerDataLoad.class, event -> CommonEvents.onTagsUpdated());
+		NeoForge.EVENT_BUS.addListener(AddServerReloadListenersEvent.class, event ->
+			event.addListener(Railways.asResource(LiquidFuelManager.ReloadListener.ID), LiquidFuelManager.ReloadListener.INSTANCE));
 	}
 }

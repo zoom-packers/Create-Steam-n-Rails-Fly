@@ -5,12 +5,14 @@ import java.util.zip.ZipFile
 import org.gradle.api.tasks.bundling.Jar
 
 plugins {
-    id("net.fabricmc.fabric-loom") version "1.16-SNAPSHOT"
+    // ZP5: NeoForge 26.3 build against the Create Fly NeoForge port (see PORTING.md)
+    `java-library`
+    id("net.neoforged.moddev") version "2.0.148"
     `maven-publish`
 }
 
 group = property("maven_group") as String
-version = "${property("mod_version")}+fabric-mc${property("minecraft_version")}"
+version = "${property("mod_version")}+neoforge-mc${property("minecraft_version")}"
 
 base {
     archivesName.set(property("archives_base_name") as String)
@@ -18,29 +20,63 @@ base {
 
 repositories {
     mavenCentral()
-    maven("https://maven.fabricmc.net/")
-    maven("https://maven.blamejared.com/")
-    maven("https://maven.maxhenkel.de/repository/public")
-    maven("https://jitpack.io/") {
-        content { includeGroupByRegex("com\\.github.*") }
+    maven("https://maven.blamejared.com/") {
+        content { includeGroup("mezz.jei") }
+    }
+    maven("https://maven.maxhenkel.de/repository/public") {
+        content { includeGroup("de.maxhenkel.voicechat") }
     }
     maven("https://api.modrinth.com/maven") {
         content { includeGroup("maven.modrinth") }
     }
 }
 
-loom {
-    accessWidenerPath.set(file("common/src/main/resources/railways.accesswidener"))
+java.toolchain.languageVersion = JavaLanguageVersion.of(25)
+
+// The Create Fly NeoForge 26.3 port (ZP5's mods/create-fly-neoforge). It is not on a maven, so the build takes its
+// jar, its access transformer and its interface-injection file from create_neoforge_dir (see PORTING.md).
+val createNeoForgeDir = file(property("create_neoforge_dir") as String)
+val createNeoForgeJar = createNeoForgeDir.resolve(property("create_neoforge_jar") as String)
+
+neoForge {
+    version = property("neo_version") as String
+
+    // Our own AT, plus Create's for compiling against what Create widens (FML applies Create's at runtime)
+    accessTransformers.from(file("neoforge/src/main/resources/META-INF/accesstransformer.cfg"))
+    accessTransformers.from(createNeoForgeDir.resolve("create-accesstransformer.cfg"))
+    interfaceInjectionData.from(createNeoForgeDir.resolve("create-interfaces.json"))
+
     mods {
         create("railways") {
             sourceSet(sourceSets.main.get())
+        }
+    }
+
+    runs {
+        create("server") {
+            server()
+            programArgument("--nogui")
+        }
+        create("gameTestServer") {
+            type = "gameTestServer"
+        }
+        create("client") {
+            client()
+        }
+        configureEach {
+            systemProperty("neoforge.enabledGameTestNamespaces", "railways,create")
+            logLevel = org.slf4j.event.Level.INFO
+            if (project.hasProperty("mixinDebug")) {
+                systemProperty("mixin.debug.verbose", "true")
+                systemProperty("mixin.debug.export", "true")
+            }
         }
     }
 }
 
 sourceSets {
     main {
-        java.setSrcDirs(listOf("common/src/main/java", "fabric/src/main/java"))
+        java.setSrcDirs(listOf("common/src/main/java", "fabric/src/main/java", "neoforge/src/main/java"))
         java.exclude(
             "com/railwayteam/railways/base/data/lang/**",
             "com/railwayteam/railways/base/data/RailwaysHatOffsetGenerator.java",
@@ -90,29 +126,38 @@ sourceSets {
             "com/railwayteam/railways/content/palettes/boiler/fabric/ObjModelBuilder.java",
             "com/railwayteam/railways/fabric/events/ClientEventsFabric.java",
             "com/railwayteam/railways/fabric/mixin/**",
+            // ZP5: Fabric datagen entrypoint; the generated resources are checked in
+            "com/railwayteam/railways/fabric/RailwaysDataFabric.java",
+            // ZP5: 26.3 replaced ItemInHandRenderer; NeoForge's RenderHandEvent does the same (RailwaysClientImpl)
+            "com/railwayteam/railways/fabric_mixin/conductor_possession/MixinItemInHandRenderer.java",
         )
         resources.setSrcDirs(
             listOf(
                 "common/src/main/resources",
                 "common/src/generated/resources",
                 "fabric/src/main/resources",
+                "neoforge/src/main/resources",
             )
         )
     }
 }
 
+// ZP5: compile-only stand-ins for Fabric's @Environment markers (see neoforge/src/fabricStubs); never packaged
+val fabricStubs: SourceSet = sourceSets.create("fabricStubs") {
+    java.setSrcDirs(listOf("neoforge/src/fabricStubs/java"))
+    resources.setSrcDirs(emptyList<String>())
+}
+
 dependencies {
-    minecraft("com.mojang:minecraft:${property("minecraft_version")}")
-    implementation("net.fabricmc:fabric-loader:${property("fabric_loader_version")}")
-    implementation("net.fabricmc.fabric-api:fabric-api:${property("fabric_api_version")}")
-    implementation("maven.modrinth:create-fly:${property("create_fabric_version")}")
+    implementation(files(createNeoForgeJar))
+    compileOnly(fabricStubs.output)
 
     compileOnly("com.google.code.findbugs:jsr305:3.0.2")
     compileOnly("de.maxhenkel.voicechat:voicechat-api:${property("voicechat_api_version")}")
-    compileOnly("mezz.jei:jei-${property("jei_fabric_version")}")
-
-    annotationProcessor("io.github.llamalad7:mixinextras-common:${property("mixin_extras_version")}")
-    implementation(include("io.github.llamalad7:mixinextras-fabric:${property("mixin_extras_version")}")!!)
+    compileOnly("mezz.jei:jei-${property("jei_version")}")
+    if (project.hasProperty("withJei")) {
+        runtimeOnly("mezz.jei:jei-${property("jei_version")}")
+    }
 
     testImplementation("org.junit.jupiter:junit-jupiter:6.1.2")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
@@ -359,24 +404,21 @@ tasks.processResources {
 
     val properties = mapOf(
         "version" to project.version,
-        "minecraft_version" to project.property("minecraft_version"),
-        "minecraft_dependency_version" to project.property("minecraft_dependency_version"),
-        "fabric_api_version" to project.property("fabric_api_version"),
-        "fabric_loader_version" to project.property("fabric_loader_version"),
-        "create_fabric_version" to project.property("create_fabric_version"),
-        "create_fabric_version_range" to project.property("create_fabric_version_range"),
+        "minecraft_version_range" to project.property("minecraft_version_range"),
+        "neo_version_range" to project.property("neo_version_range"),
+        "create_neoforge_version_range" to project.property("create_neoforge_version_range"),
     )
     inputs.properties(properties)
     inputs.property("railwayFabricConventionTagSchema", "fabric-convention-tags-v2-26.2-v1")
     inputs.property("railwayAdvancementSchema", "minecraft-26.2-v1")
     inputs.property("railwayPaintFluidComponents", "minecraft-26.2-custom-data-v1")
     inputs.property("railwayPaintProjectileRegistryPath", "create-fly-26.2-v1")
-    inputs.property("railwayCompatTrackLootConditions", "fabric-resource-conditions-6.1-v1")
+    inputs.property("railwayCompatTrackLootConditions", "neoforge-conditions-26.3-v1")
     inputs.property("railwayCompatTrackLootConditionMapping", compatTrackLootTableModIds)
     inputs.property("railwayInternalNoDropLootTables", internalNoDropBlockLootTables.sorted())
     inputs.property("railwayAnimatedDoorBlockstates", "create-fly-6.0.9-particle-only-v1")
 
-    filesMatching("fabric.mod.json") {
+    filesMatching("META-INF/neoforge.mods.toml") {
         expand(properties)
     }
     eachFile {
@@ -833,13 +875,13 @@ tasks.processResources {
             @Suppress("UNCHECKED_CAST")
             val lootTable = JsonSlurper().parse(lootTableFile) as? MutableMap<String, Any?>
                 ?: throw GradleException("Loot-table root must be a JSON object: $lootTableFile")
-            if (lootTable.containsKey("fabric:load_conditions")) {
-                throw GradleException("Compat loot table already has a Fabric load condition: $lootTableFile")
+            if (lootTable.containsKey("neoforge:conditions")) {
+                throw GradleException("Compat loot table already has a NeoForge load condition: $lootTableFile")
             }
 
-            lootTable["fabric:load_conditions"] = linkedMapOf(
-                "condition" to "fabric:all_mods_loaded",
-                "values" to listOf(modId),
+            // ZP5: NeoForge load condition instead of Fabric's fabric:load_conditions
+            lootTable["neoforge:conditions"] = listOf(
+                linkedMapOf("type" to "neoforge:mod_loaded", "modid" to modId),
             )
             lootTableFile.writeText(
                 JsonOutput.prettyPrint(JsonOutput.toJson(lootTable)) + "\n",
@@ -865,9 +907,9 @@ tasks.processResources {
             val lootTable = JsonSlurper().parse(lootTableFile) as? Map<String, Any?>
                 ?: return@mapNotNull lootTableFile.path
             @Suppress("UNCHECKED_CAST")
-            val condition = lootTable["fabric:load_conditions"] as? Map<String, Any?>
-            if (condition?.get("condition") != "fabric:all_mods_loaded" ||
-                condition["values"] != listOf(expectedModId)
+            val condition = (lootTable["neoforge:conditions"] as? List<*>)?.singleOrNull() as? Map<String, Any?>
+            if (condition?.get("type") != "neoforge:mod_loaded" ||
+                condition["modid"] != expectedModId
             ) {
                 lootTableFile.path
             } else {
@@ -876,7 +918,7 @@ tasks.processResources {
         }
         if (malformedCompatConditions.isNotEmpty()) {
             throw GradleException(
-                "Missing or malformed Fabric compat loot-table conditions:\n" +
+                "Missing or malformed NeoForge compat loot-table conditions:\n" +
                     malformedCompatConditions.joinToString("\n"),
             )
         }
@@ -898,7 +940,7 @@ tasks.processResources {
         }
 
         logger.lifecycle(
-            "Added Fabric load conditions to $conditionedCompatLootTables compat track loot tables across " +
+            "Added NeoForge load conditions to $conditionedCompatLootTables compat track loot tables across " +
                 "${conditionedCompatFamilies.size} mod families; removed " +
                 "${internalNoDropBlockLootTables.size} internal no-drop loot tables",
         )
@@ -941,9 +983,55 @@ tasks.processResources {
                     missingNormalizedOutputs.joinToString("\n"),
             )
         }
+
+        // ZP5: compat recipes carry both Fabric load conditions and legacy Forge "conditions"; NeoForge reads
+        // neoforge:conditions (and 26.3 would misread a root "conditions" list as loot conditions)
+        var conditionedRecipes = 0
+        fileTree(outputRoot.resolve("data")) { include("**/*.json") }.files.sortedBy(File::getPath).forEach { dataFile ->
+            val text = dataFile.readText(Charsets.UTF_8)
+            if (!text.contains("\"fabric:load_conditions\"")) return@forEach
+            @Suppress("UNCHECKED_CAST")
+            val json = JsonSlurper().parse(dataFile) as? MutableMap<String, Any?>
+                ?: throw GradleException("Conditioned data file root must be a JSON object: $dataFile")
+            @Suppress("UNCHECKED_CAST")
+            val fabricConditions = json.remove("fabric:load_conditions") as? List<Map<String, Any?>>
+                ?: throw GradleException("Unsupported fabric:load_conditions shape: $dataFile")
+            val neoConditions = fabricConditions.flatMap { condition ->
+                if (condition["condition"] != "fabric:all_mods_loaded")
+                    throw GradleException("Unsupported Fabric load condition ${condition["condition"]}: $dataFile")
+                (condition["values"] as List<*>).map { modId -> linkedMapOf("type" to "neoforge:mod_loaded", "modid" to modId) }
+            }
+            @Suppress("UNCHECKED_CAST")
+            val legacyConditions = json["conditions"] as? List<Map<String, Any?>>
+            if (legacyConditions != null && legacyConditions.all { it["type"] == "forge:mod_loaded" }) {
+                json.remove("conditions")
+            }
+            val rebuilt = linkedMapOf<String, Any?>("neoforge:conditions" to neoConditions)
+            rebuilt.putAll(json)
+            dataFile.writeText(JsonOutput.prettyPrint(JsonOutput.toJson(rebuilt)) + "\n", Charsets.UTF_8)
+            conditionedRecipes++
+        }
+        logger.lifecycle("Converted Fabric load conditions to neoforge:conditions in $conditionedRecipes data files")
+
+        // ZP5: convert the processed 26.2 data and asset JSON to the 26.3 formats with the Create port's converter
+        // (tools/data_26_3.py: loot conditions/functions, number providers, advancements, recipes, model shade)
+        val converter = ProcessBuilder(
+            providers.gradleProperty("python").getOrElse("python"), "-I",
+            file("tools/data_26_3.py").absolutePath,
+            outputRoot.resolve("data").absolutePath,
+            outputRoot.resolve("assets").absolutePath,
+        ).redirectErrorStream(true).start()
+        val converterLog = converter.inputStream.bufferedReader().readText()
+        if (converter.waitFor() != 0) {
+            throw GradleException("tools/data_26_3.py failed on processResources output:\n$converterLog")
+        }
+        logger.lifecycle(converterLog.lines().filter { it.isNotBlank() }.takeLast(5).joinToString("\n"))
     }
 
     exclude("architectury.common.json")
+    // ZP5: Fabric-only metadata; NeoForge reads META-INF/neoforge.mods.toml and META-INF/accesstransformer.cfg
+    exclude("fabric.mod.json")
+    exclude("railways.accesswidener")
     exclude("assets/create/**")
     exclude(".cache/**")
     exclude("**/*.bbmodel", "**/*.lnk", "**/*.xcf", "**/*.md", "**/*.txt", "**/*.blend", "**/*.blend1")

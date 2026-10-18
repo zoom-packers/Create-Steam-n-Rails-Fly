@@ -24,7 +24,8 @@ import com.railwayteam.railways.util.FluidUtils;
 import com.zurrtum.create.api.contraption.storage.fluid.MountedFluidStorageWrapper;
 import net.minecraft.world.level.material.Fluid;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.block.entity.FuelValues;
+import com.zurrtum.create.foundation.utility.FuelHelper;
+import net.minecraft.world.level.Level;
 import org.jetbrains.annotations.Nullable;
 
 public class LiquidFuelTrainHandler {
@@ -32,7 +33,8 @@ public class LiquidFuelTrainHandler {
         return com.railwayteam.railways.content.fuel.fabric.LiquidFuelTrainHandlerImpl.handleFuelDraining(fluidFuels);
     }
 
-    public static int handleFuelDraining(MountedFluidStorageWrapper fluidFuels, FuelValues fuelValues) {
+    // 26.3: FuelValues is gone (fuel is the cooking_fuel item component); the level resolves burn times
+    public static int handleFuelDraining(MountedFluidStorageWrapper fluidFuels, Level fuelValues) {
         return com.railwayteam.railways.content.fuel.fabric.LiquidFuelTrainHandlerImpl.handleFuelDraining(
             fluidFuels,
             fuelValues
@@ -43,7 +45,7 @@ public class LiquidFuelTrainHandler {
         return handleFuelChecking(o, null);
     }
 
-    public static int handleFuelChecking(Object o, @Nullable FuelValues fuelValues) {
+    public static int handleFuelChecking(Object o, @Nullable Level fuelValues) {
         int burnTime;
 
         Fluid fluid = FluidUtils.getFluid(o);
@@ -55,7 +57,7 @@ public class LiquidFuelTrainHandler {
         } else {
             int bucketBurnTime = fuelValues == null
                 ? PlatformAbstractionHelper.getBurnTime(fluid.getBucket())
-                : fuelValues.burnDuration(new ItemStack(fluid.getBucket()));
+                : FuelHelper.burnDuration(fuelValues, null, new ItemStack(fluid.getBucket()));
 
             // Divide burnTime by 10 to get burnTime for 1/10th of a bucket and then by divide by 4,
             // so it isn't so strong

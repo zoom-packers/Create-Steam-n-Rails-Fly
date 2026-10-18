@@ -16,9 +16,9 @@ import com.railwayteam.railways.content.fuel.tank.FuelTankBlockEntity;
 import com.railwayteam.railways.internal.compat.registrate.util.entry.BlockEntityEntry;
 import com.zurrtum.create.api.behaviour.BlockEntityBehaviour;
 import com.zurrtum.create.foundation.blockEntity.SmartBlockEntity;
-import com.zurrtum.create.foundation.blockEntity.behaviour.CachedFluidInventoryBehaviour;
+import com.zurrtum.create.neoforge.transfer.CachedFluidInventoryBehaviour;
+import com.zurrtum.create.neoforge.transfer.NeoForgeTransfer;
 import com.zurrtum.create.infrastructure.fluids.FluidInventory;
-import net.fabricmc.fabric.api.transfer.v1.fluid.FluidStorage;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 
 import java.util.function.Function;
@@ -60,6 +60,7 @@ public final class CRBlockEntitiesImpl {
         Function<T, FluidInventory> inventory
     ) {
         BlockEntityBehaviour.add(type, blockEntity -> new CachedFluidInventoryBehaviour<>(blockEntity, inventory));
-        FluidStorage.SIDED.registerForBlockEntity(CachedFluidInventoryBehaviour::get, type);
+        // NeoForge: Create's capability bridge instead of Fabric's FluidStorage.SIDED
+        NeoForgeTransfer.registerFluid(type, CachedFluidInventoryBehaviour::get);
     }
 }

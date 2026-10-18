@@ -17,7 +17,8 @@ import com.railwayteam.railways.registry.CRTrackMaterials;
 import com.railwayteam.railways.util.Utils;
 import com.zurrtum.create.content.trains.track.TrackBlock;
 import com.zurrtum.create.content.trains.track.TrackShape;
-import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
+import net.neoforged.neoforge.common.NeoForge;
+import net.neoforged.neoforge.event.server.ServerStartedEvent;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.server.MinecraftServer;
@@ -36,7 +37,7 @@ public final class MonorailRuntimeChecks {
         if (registered || !Utils.isDevEnv())
             return;
         registered = true;
-        ServerLifecycleEvents.SERVER_STARTED.register(MonorailRuntimeChecks::run);
+        NeoForge.EVENT_BUS.addListener(ServerStartedEvent.class, event -> MonorailRuntimeChecks.run(event.getServer())); // NeoForge
     }
 
     private static void run(MinecraftServer server) {

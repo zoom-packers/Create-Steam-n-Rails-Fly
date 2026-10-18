@@ -1,0 +1,47 @@
+modLoader = "javafml"
+loaderVersion = "[1,)"
+license = "LGPL-3.0-or-later"
+issueTrackerURL = "https://github.com/cat4blep/Create-Steam-n-Rails-Fly/issues"
+
+[[mods]]
+modId = "railways"
+version = "${version}"
+displayName = "Create: Steam 'n' Rails"
+logoFile = "assets/railways/icon.png"
+authors = "The Railways Team, R2bEEaton (Create Fly port), Zoompack 5 (NeoForge 26.3 port)"
+description = '''
+Steam 'n' Rails for Create Fly, ported to NeoForge 26.3 by Zoompack 5. Not an official release.
+'''
+
+[[mixins]]
+config = "railways.mixins.json"
+
+[[mixins]]
+config = "railways-common.mixins.json"
+
+[[mixins]]
+config = "railways-neoforge.mixins.json"
+
+[[accessTransformers]]
+file = "META-INF/accesstransformer.cfg"
+
+[[dependencies.railways]]
+modId = "minecraft"
+type = "required"
+versionRange = "${minecraft_version_range}"
+ordering = "NONE"
+side = "BOTH"
+
+[[dependencies.railways]]
+modId = "neoforge"
+type = "required"
+versionRange = "${neo_version_range}"
+ordering = "NONE"
+side = "BOTH"
+
+[[dependencies.railways]]
+modId = "create"
+type = "required"
+versionRange = "${create_neoforge_version_range}"
+ordering = "AFTER"
+side = "BOTH"

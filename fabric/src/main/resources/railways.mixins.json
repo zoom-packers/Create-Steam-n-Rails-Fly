@@ -51,7 +51,6 @@
     "client.MixinTrackSwitchBlockEntityGoggles",
     "conductor_possession.MixinExperienceBar",
     "conductor_possession.MixinGameRenderer",
-    "conductor_possession.MixinItemInHandRenderer",
     "conductor_possession.MixinLocalPlayer",
     "conductor_possession.MixinMinecraft"
   ],

@@ -18,15 +18,25 @@
 
 package com.railwayteam.railways.registry.fabric;
 
-import net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper;
 import net.minecraft.client.KeyMapping;
+import net.neoforged.neoforge.client.event.RegisterKeyMappingsEvent;
+
+import java.util.ArrayList;
+import java.util.List;
 
 public class CRKeysImpl {
+    // NeoForge: key mappings are registered in RegisterKeyMappingsEvent (RailwaysClientImpl)
+    private static final List<KeyMapping> MAPPINGS = new ArrayList<>();
+
     public static void registerKeyBinding(KeyMapping keyMapping) {
-        KeyMappingHelper.registerKeyMapping(keyMapping);
+        MAPPINGS.add(keyMapping);
+    }
+
+    public static void registerKeyMappings(RegisterKeyMappingsEvent event) {
+        MAPPINGS.forEach(event::register);
     }
 
     public static int getBoundCode(KeyMapping keyMapping) {
-        return KeyMappingHelper.getBoundKeyOf(keyMapping).getValue();
+        return keyMapping.getKey().getValue();
     }
 }

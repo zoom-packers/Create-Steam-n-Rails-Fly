@@ -24,7 +24,8 @@ import com.zurrtum.create.api.contraption.storage.fluid.MountedFluidStorageType;
 import com.zurrtum.create.api.contraption.storage.fluid.MountedFluidStorageWrapper;
 import com.zurrtum.create.api.registry.CreateRegistries;
 import com.zurrtum.create.infrastructure.fluids.FluidStack;
-import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
+import net.neoforged.neoforge.common.NeoForge;
+import net.neoforged.neoforge.event.server.ServerStartedEvent;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
@@ -46,7 +47,7 @@ public final class FuelRuntimeChecks {
             return;
         }
         registered = true;
-        ServerLifecycleEvents.SERVER_STARTED.register(FuelRuntimeChecks::run);
+        NeoForge.EVENT_BUS.addListener(ServerStartedEvent.class, event -> FuelRuntimeChecks.run(event.getServer())); // NeoForge
     }
 
     private static void run(MinecraftServer server) {
@@ -136,7 +137,7 @@ public final class FuelRuntimeChecks {
             ImmutableMap.of(BlockPos.ZERO, storage)
         );
 
-        int fuelTicks = LiquidFuelTrainHandler.handleFuelDraining(wrapper, server.fuelValues());
+        int fuelTicks = LiquidFuelTrainHandler.handleFuelDraining(wrapper, server.overworld()); // 26.3
         require(fuelTicks > 0, "one tenth of a lava bucket produced no train fuel ticks");
         require(wrapper.getStack(0).getAmount() == 8_100, "liquid fuel drain did not consume exactly 8,100 units");
         require(storage.isDirty(), "liquid fuel drain did not mark mounted storage dirty");

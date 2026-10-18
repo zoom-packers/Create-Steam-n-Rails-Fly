@@ -16,6 +16,12 @@ import net.minecraft.world.phys.shapes.VoxelShape;
 import com.railwayteam.railways.internal.compat.minecraftforge.fluids.ForgeFlowingFluid;
 
 public class VirtualFluid extends ForgeFlowingFluid {
+    // NeoForge: mod fluids must provide a FluidType; the only virtual fluid is paint
+    @Override
+    public net.neoforged.neoforge.fluids.FluidType getFluidType() {
+        return com.railwayteam.railways.registry.fabric.CRFluidsImpl.PAINT_TYPE.get();
+    }
+
     public Item getBucket() {
         return Items.AIR;
     }

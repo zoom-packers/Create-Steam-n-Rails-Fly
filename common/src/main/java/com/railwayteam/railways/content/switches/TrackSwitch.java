@@ -150,6 +150,15 @@ public class TrackSwitch extends SingleBlockEntityEdgePoint {
 		return null;
 	}
 
+	// 26.3: FriendlyByteBuf lost readList
+	private static List<TrackNodeLocation> readExits(FriendlyByteBuf buffer, DimensionPalette dimensions) {
+		int count = buffer.readVarInt();
+		List<TrackNodeLocation> list = new ArrayList<>(count);
+		for (int i = 0; i < count; i++)
+			list.add(TrackNodeLocation.receive(buffer, dimensions));
+		return list;
+	}
+
 	void updateExits(TrackNodeLocation switchPoint, Collection<TrackNodeLocation> newExits) {
 		this.switchPoint = switchPoint;
 
@@ -325,7 +334,10 @@ public class TrackSwitch extends SingleBlockEntityEdgePoint {
 		buffer.writeBoolean(hasPoint);
 		if (hasPoint) {
 			switchPoint.send(buffer, dimensions);
-			buffer.writeCollection(exits, (buf, e) -> e.send(buf, dimensions));
+			// 26.3: FriendlyByteBuf lost writeCollection/readList
+			buffer.writeVarInt(exits.size());
+			for (TrackNodeLocation e : exits)
+				e.send(buffer, dimensions);
 		}
 	}
 
@@ -395,7 +407,7 @@ public class TrackSwitch extends SingleBlockEntityEdgePoint {
 		if (buffer.readBoolean()) {
 			updateExits(
 				TrackNodeLocation.receive(buffer, dimensions),
-				buffer.readList(buf -> TrackNodeLocation.receive(buf, dimensions))
+				readExits(buffer, dimensions)
 			);
 		} else {
 			exits.clear();

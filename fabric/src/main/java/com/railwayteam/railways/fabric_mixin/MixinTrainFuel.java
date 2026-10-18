@@ -21,7 +21,6 @@ import com.zurrtum.create.content.trains.entity.Train;
 import net.minecraft.world.Container;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.entity.FuelValues;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
@@ -50,7 +49,7 @@ public abstract class MixinTrainFuel {
     private void railways$burnLiquidFuel(Level level, CallbackInfo ci) {
         boolean iterateFromBack = speed < 0;
         int carriageCount = carriages.size();
-        FuelValues fuelValues = level.fuelValues();
+        Level fuelValues = level; // 26.3: FuelValues is gone
 
         for (int index = 0; index < carriageCount; index++) {
             int carriageIndex = iterateFromBack ? carriageCount - 1 - index : index;

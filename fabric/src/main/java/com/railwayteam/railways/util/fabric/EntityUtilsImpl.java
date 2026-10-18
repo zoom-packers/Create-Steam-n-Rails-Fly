@@ -1,8 +1,9 @@
 package com.railwayteam.railways.util.fabric;
 
+import net.minecraft.util.Prediction;
 import com.railwayteam.railways.content.conductor.ConductorEntity;
 import com.railwayteam.railways.fabric.ConductorFakePlayerFabric;
-import net.fabricmc.fabric.api.event.player.UseBlockCallback;
+import net.neoforged.neoforge.common.CommonHooks;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -24,7 +25,7 @@ public class EntityUtilsImpl {
     }
 
     public static void givePlayerItem(Player player, ItemStack stack) {
-        player.getInventory().placeItemBackInInventory(stack);
+        player.getInventory().placeItemBackInInventory(stack, Prediction.SERVER_ONLY);
     }
 
     public static ServerPlayer createConductorFakePlayer(ServerLevel level, ConductorEntity conductor) {
@@ -36,7 +37,7 @@ public class EntityUtilsImpl {
     }
 
     public static boolean handleUseEvent(Player player, InteractionHand hand, BlockHitResult hit) {
-        InteractionResult result = UseBlockCallback.EVENT.invoker().interact(player, player.level, hand, hit);
-        return result != InteractionResult.FAIL;
+        // NeoForge: PlayerInteractEvent.RightClickBlock instead of Fabric's UseBlockCallback
+        return !CommonHooks.onRightClickBlock(player, hand, hit.getBlockPos(), hit).isCanceled();
     }
 }

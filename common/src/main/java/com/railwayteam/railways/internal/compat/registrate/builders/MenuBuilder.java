@@ -3,15 +3,15 @@ package com.railwayteam.railways.internal.compat.registrate.builders;
 import com.railwayteam.railways.internal.compat.registrate.Registrate;
 import com.railwayteam.railways.internal.compat.registrate.util.entry.MenuEntry;
 import com.railwayteam.railways.internal.compat.registrate.util.nullness.NonNullBiFunction;
-import io.netty.buffer.Unpooled;
-import net.fabricmc.api.EnvType;
-import net.fabricmc.loader.api.FabricLoader;
-import net.fabricmc.fabric.api.menu.v1.ExtendedMenuType;
+import com.railwayteam.railways.neoforge.RailwaysNeoForgeInit;
 import net.minecraft.client.gui.screens.MenuScreens;
+import net.neoforged.api.distmarker.Dist;
+import net.neoforged.fml.loading.FMLEnvironment;
+import net.neoforged.neoforge.client.event.RegisterMenuScreensEvent;
+import net.neoforged.neoforge.common.extensions.IMenuTypeExtension;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.MenuAccess;
-import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.AbstractContainerMenu;
@@ -52,11 +52,8 @@ public class MenuBuilder<T extends AbstractContainerMenu, P> extends AbstractBui
     public MenuEntry<T> register() {
         MenuType<T> type;
         if (extendedFactory != null) {
-            type = new ExtendedMenuType<>((syncId, inventory, data) -> {
-                FriendlyByteBuf buffer = new FriendlyByteBuf(Unpooled.buffer());
-                buffer.writeNbt(data);
-                return extendedFactory.create(typeRef[0], syncId, inventory, buffer);
-            }, ByteBufCodecs.COMPOUND_TAG);
+            // NeoForge: menu types with extra data instead of Fabric's ExtendedMenuType
+            type = IMenuTypeExtension.create((syncId, inventory, data) -> extendedFactory.create(typeRef[0], syncId, inventory, data));
         } else {
             type = new MenuType<>((syncId, inventory) -> factory.apply(null, syncId), net.minecraft.world.flag.FeatureFlags.DEFAULT_FLAGS);
         }
@@ -70,13 +67,14 @@ public class MenuBuilder<T extends AbstractContainerMenu, P> extends AbstractBui
     @SuppressWarnings({"unchecked", "rawtypes"})
     private <S extends Screen & MenuAccess<T>> void registerScreen(MenuType<T> type) {
         typeRef[0] = type;
-        if (FabricLoader.getInstance().getEnvironmentType() != EnvType.CLIENT)
+        if (FMLEnvironment.getDist() != Dist.CLIENT)
             return;
         Object supplied = screenFactory.get();
         if (!(supplied instanceof ScreenFactory))
             return;
         ScreenFactory<T, S> factory = (ScreenFactory<T, S>) supplied;
         MenuScreens.ScreenConstructor<T, S> constructor = (menu, inventory, title) -> factory.create(menu, inventory, title);
-        MenuScreens.register(type, constructor);
+        // NeoForge: screens are registered in RegisterMenuScreensEvent
+        RailwaysNeoForgeInit.onModBus(bus -> bus.addListener(RegisterMenuScreensEvent.class, event -> event.register(type, constructor)));
     }
 }

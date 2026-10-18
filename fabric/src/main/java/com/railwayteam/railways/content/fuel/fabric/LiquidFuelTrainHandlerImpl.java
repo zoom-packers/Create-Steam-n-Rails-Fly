@@ -3,7 +3,7 @@ package com.railwayteam.railways.content.fuel.fabric;
 import com.railwayteam.railways.content.fuel.LiquidFuelTrainHandler;
 import com.zurrtum.create.api.contraption.storage.fluid.MountedFluidStorageWrapper;
 import com.zurrtum.create.infrastructure.fluids.FluidStack;
-import net.minecraft.world.level.block.entity.FuelValues;
+import net.minecraft.world.level.Level;
 import org.jetbrains.annotations.Nullable;
 
 public final class LiquidFuelTrainHandlerImpl {
@@ -18,7 +18,7 @@ public final class LiquidFuelTrainHandlerImpl {
 
     public static int handleFuelDraining(
         MountedFluidStorageWrapper fluidFuels,
-        @Nullable FuelValues fuelValues
+        @Nullable Level fuelValues // 26.3: FuelValues is gone
     ) {
         for (int slot = 0; slot < fluidFuels.size(); slot++) {
             FluidStack stack = fluidFuels.getStack(slot);
