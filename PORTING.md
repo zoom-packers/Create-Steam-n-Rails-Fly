@@ -11,8 +11,8 @@ Checked on 2026-10-18 against Minecraft 26.3, NeoForge 26.3.0.89, Java 25.0.1 an
 | | |
 |---|---|
 | Mod id | `railways` (unchanged) |
-| Version | `1.4.0-zp5.1` (`neoforge_mod_version`; upstream's `mod_version` stays `SNR.FLY-STABLE-1.4`) |
-| Jar | `build/libs/railways-neoforge-26.3-1.4.0-zp5.1.jar` |
+| Version | `1.4.0-zp5.2` (`neoforge_mod_version`; upstream's `mod_version` stays `SNR.FLY-STABLE-1.4`) |
+| Jar | `build/libs/railways-neoforge-26.3-1.4.0-zp5.2.jar` |
 | License | LGPL-3.0-or-later (the `LICENSE` file; Modrinth lists GPL-3.0-only). Parts derive from Create (MIT), QSL (Apache-2.0), SecurityCraft (MIT), Neruina (MIT) and FramedBlocks (LGPL) |
 
 ## How the port is organised
@@ -50,6 +50,7 @@ The goal, as for the Create port, is a small diff against upstream so rebases st
 | `tools/remap_from_moves.py <src dirs>` | Rewrites classes 26.3 moved (`com.mojang.blaze3d` → `com.mojang.renderpearl`, …) from `tools/class-moves-26.3.txt` (copied from the Create port). Re-run after a rebase |
 | `tools/data_26_3.py` | Run by `processResources`; see above. Copied from the Create port |
 | `tools/check_mixins.py <MC jar> <NeoForge jar> <Create jar> build/classes/java/main` | Static mixin check over Railways' three mixin configs |
+| `tools/find_client_leaks.py build/classes/java/main` | Lists common classes with `@Environment(CLIENT)` members or client-class references (see "Dedicated servers") |
 | `tools/check_recipe_refs.py`, `tools/worldgen_26_3.py`, `tools/classtweaker2at.py` | Copied from the Create port for later use; Railways has no worldgen |
 
 ## Build
@@ -87,6 +88,25 @@ did not. Create's NeoForge port therefore registers everything during vanilla bo
    plugin loads the `Create` class before other mods' mixins are prepared.
 3. Anything that needs the mod event bus, which does not exist yet during bootstrap, is queued with
    `RailwaysNeoForgeInit.onModBus` and attached when `RailwaysNeoForge` is constructed.
+
+## Dedicated servers: no client stripping
+
+Fabric Loader removes classes, fields and methods annotated `@Environment(EnvType.CLIENT)` when it loads them on a
+dedicated server. NeoForge does not, and upstream relies on it: common classes hold client-only members. Most are
+harmless (the JVM only loads a referenced class when it runs or verifies code that needs it), but some are not.
+`railways-26.3-zp5.1` crashed every dedicated server at startup: `MinecartJukebox` assigned its client sound instance
+to a `SoundInstance`, so verifying the entity class needed the client class (`NoClassDefFoundError`).
+
+- Fixed in zp5.2: the jukebox cart's sound code lives in the client-only `MinecartJukeboxClient`; the entity keeps an
+  opaque handle.
+- The dev-time `MixinEnvironment.audit()` in `Railways.init` is off on NeoForge too: it force-loads every mixin
+  target, client ones included.
+- `tools/find_client_leaks.py` lists the remaining `@Environment(CLIENT)` members in common classes (24 classes, e.g.
+  `PacketSet`, `ConductorEntity`, `GenericCrossingBlock`). They only run on the client and do not break class loading;
+  the checks below load every block, block entity and entity class on a stripped server.
+- **The GameTest launcher keeps client classes on the classpath**, so `runGameTestServer` cannot catch this. Check a
+  dedicated server with `runServer` (NeoForge's dev dist cleaner strips client classes like a real server) and run
+  the GameTests there with `/test run railways:*` (over RCON from a script, since the dev server has no console).
 
 ## Fabric API replacements
 
@@ -160,6 +180,8 @@ Verified on 2026-10-18:
   an inner enum mixin the script cannot parse, an all-caps `@Accessor`, two name-only targets with a second overload
   (unchanged from upstream), one `require = 0` injector, and a Javadoc mention of `@Shadow` the script misreads. One real break
   (`setPostEffect`) was fixed.
+- **Dedicated server** (zp5.2): `runServer` reaches "Done", and on that dist-cleaned server the self-checks below
+  and all `railways:*` and `create:*` GameTests pass, both in the dev run and with only the two built jars (`_jartest`).
 - **GameTest server** (dev run, and again with only the built jars in a plain NeoForge devrun, `_jartest`):
   - Railways' dev runtime probes pass: bogey styles and gauges; monorail; paint pitcher components, NeoForge fluid
     handler, cannon splitting and the potato projectile; roller track replacement; Shadow Realm storage, commands,
@@ -168,6 +190,8 @@ Verified on 2026-10-18:
     edges carry `railways:acacia`.
   - `railways:fuel_tank_takes_lava_not_water`: through NeoForge's `Capabilities.Fluid.BLOCK`, a fuel tank refuses
     water and takes 1000 mB of lava (81000 Create units).
+  - `railways:every_block_and_entity_loads`: places all 1447 Railways blocks (default states) and spawns all 3
+    Railways entities, and lets them tick.
   - Create's own `water_wheel_drives_press` and `basin_fluid_survives_save` still pass; no block entity fails to save.
 - **Content.** 1489 blocks, 473 items and 3 entities in `en_us.json`.
 - **Not checked:** the client, trains actually running (assembly, fuel burn, couplers, conductors), and the full ZP5

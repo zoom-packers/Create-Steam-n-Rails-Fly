@@ -105,7 +105,8 @@ public class Railways {
     MultiRegistryCallback.enableFinalizers();
 
     // TODO - Forge entirely breaks with mixin audit, truly incredible
-    if (FORCE_MIXIN_AUDIT || Utils.isDevEnv() && !Loader.FORGE.isCurrent() && !Mods.BYG.isLoaded && !Mods.SODIUM.isLoaded && !Utils.isEnvVarTrue("DATAGEN")) // force all mixins to load in dev
+    // NeoForge: no dev-time audit either; it force-loads every mixin target, client ones included on servers
+    if (FORCE_MIXIN_AUDIT || Utils.isDevEnv() && !Loader.FORGE.isCurrent() && !Loader.NEOFORGE.isCurrent() && !Mods.BYG.isLoaded && !Mods.SODIUM.isLoaded && !Utils.isEnvVarTrue("DATAGEN")) // force all mixins to load in dev
       MixinEnvironment.getCurrentEnvironment().audit();
   }
 

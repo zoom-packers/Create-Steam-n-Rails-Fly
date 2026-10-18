@@ -5,13 +5,9 @@ import com.railwayteam.railways.registry.CRItems;
 import com.railwayteam.railways.util.packet.PacketSender;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.resources.sounds.AbstractTickableSoundInstance;
-import net.minecraft.client.resources.sounds.SoundInstance;
 import net.minecraft.core.Holder;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.sounds.SoundSource;
 import net.minecraft.stats.Stats;
 import net.minecraft.tags.DamageTypeTags;
 import net.minecraft.world.InteractionHand;
@@ -36,8 +32,9 @@ public class MinecartJukebox extends MinecartBlock {
 
     private int cooldownCount = 0;
     private ItemStack disc = ItemStack.EMPTY;
-    @Environment(EnvType.CLIENT)
-    private JukeboxCartSoundInstance sound;
+    // NeoForge: an opaque client sound handle. NeoForge does not strip @Environment(CLIENT) members like Fabric, so a
+    // client-typed field or method body here would make dedicated servers fail to load this class.
+    private Object sound;
 
     public MinecartJukebox(EntityType<?> type, Level level) {
         super(type, level, Blocks.JUKEBOX);
@@ -140,50 +137,8 @@ public class MinecartJukebox extends MinecartBlock {
         insertRecord(ItemStack.EMPTY);
     }
 
-    @Environment(EnvType.CLIENT)
     private void updateClientSound() {
-        if (disc.isEmpty()) {
-            if (sound != null)
-                sound.requestStop();
-            return;
-        }
-
-        if (sound != null && !sound.isStopped())
-            sound.requestStop();
-
-        JukeboxSong.fromStack(disc)
-            .map(Holder::value)
-            .ifPresent(this::startPlaying);
-    }
-
-    @Environment(EnvType.CLIENT)
-    private void startPlaying(JukeboxSong song) {
-        sound = new JukeboxCartSoundInstance(song);
-        Minecraft.getInstance().getSoundManager().play(sound);
-    }
-
-    @Environment(EnvType.CLIENT)
-    public class JukeboxCartSoundInstance extends AbstractTickableSoundInstance {
-        public JukeboxCartSoundInstance(JukeboxSong song) {
-            super(song.soundEvent().value(), SoundSource.RECORDS, SoundInstance.createUnseededRandom());
-            this.x = MinecartJukebox.this.getX();
-            this.y = MinecartJukebox.this.getY();
-            this.z = MinecartJukebox.this.getZ();
-        }
-
-        @Override
-        public void tick() {
-            if (MinecartJukebox.this.isRemoved())
-                requestStop();
-
-            this.x = MinecartJukebox.this.getX();
-            this.y = MinecartJukebox.this.getY();
-            this.z = MinecartJukebox.this.getZ();
-        }
-
-        public void requestStop() {
-            stop();
-        }
+        sound = MinecartJukeboxClient.updateSound(this, sound);
     }
 
     @Override
