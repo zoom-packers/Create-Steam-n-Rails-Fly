@@ -6,7 +6,7 @@ Upstream is the git remote `upstream`. It runs on ZP5's NeoForge port of Create 
 `neoforge-26.3`, mod id `create`), not on Creators-of-Create's NeoForge Create.
 
 Checked on 2026-10-18 against Minecraft 26.3, NeoForge 26.3.0.89, Java 25.0.1 and `create-fly-neoforge-6.0.9+neoforge-26.3.jar`
-(sha512 `68c1d7c8…6441d8`, built from create-fly-neoforge `8da5b8c6`).
+(sha512 `0821382e…92dd47d0b`, built from create-fly-neoforge `468f3bd6`).
 
 | | |
 |---|---|
@@ -63,7 +63,7 @@ The goal, as for the Create port, is a small diff against upstream so rebases st
   `create-interfaces.json` (the Create port's `interfaces.json`). The AT and interface file are applied at compile
   time only; at runtime FML applies Create's AT from its jar.
 - **Runs.** `runGameTestServer` runs the `railways` and `create` GameTests and exits. `runServer`, `runClient` (opens
-  a window; not run yet). Flags: `-PmixinDebug`, `-PwithJei`, `-PskipFuelChecks` (see the Create port bug below).
+  a window; not run yet). Flags: `-PmixinDebug`, `-PwithJei`, `-PskipFuelChecks` (see "Create port fix this needs").
 - **Unit tests.** Upstream's 23 JUnit tests run in Fabric's test environment (Fabric Loader, Fabric API, Fabric's mixin
   registration) and are disabled; the GameTests below replace them.
 
@@ -143,17 +143,12 @@ did not. Create's NeoForge port therefore registers everything during vanilla bo
 - **Client.** Compiles, but `runClient` has not been run (needs the user's OK). Every `client.*` and
   `conductor_possession.*` mixin is therefore unverified at runtime.
 
-## Known problem in the Create port (not in this tree)
+## Create port fix this needs
 
-`create-fly-neoforge`'s `infrastructure/fluids/FluidInventory#setMaxSize` puts an `Optional<Integer>` into a component
-patch (`components.patch.put(FLUID_MAX_CAPACITY, max)`), and `removeMaxSize` removes by that Optional. In 26.3 a
-patch stores raw values, so any fluid stack that passed through `FluidTank#setFluid` fails to encode
-(`ClassCastException: Optional cannot be cast to Integer`). Seen here:
-- `FuelRuntimeChecks` (the mounted fuel tank codec round trip) crashes the dev server; skip it with `-PskipFuelChecks`;
-- a filled fuel tank logs "has thrown an exception trying to write state. It will not persist", so its contents are
-  lost on save. Create's own fluid tanks share the code path.
-
-Fix belongs in the Create port: put `max.get()` (or remove the key when empty) and remove by key.
+Build against create-fly-neoforge `468f3bd6` or later ("Fix fluid and item stacks failing to save after
+setMaxSize"). Before it, `FluidInventory#setMaxSize` put an `Optional<Integer>` into a 26.3 component patch, so fluid
+stacks that passed through a `FluidTank` failed to encode: `FuelRuntimeChecks` crashed the dev server and a filled
+fuel tank logged "will not persist" on save. `-PskipFuelChecks` skips that probe if an older Create jar must be used.
 
 ## Status
 
@@ -168,12 +163,12 @@ Verified on 2026-10-18:
 - **GameTest server** (dev run, and again with only the built jars in a plain NeoForge devrun, `_jartest`):
   - Railways' dev runtime probes pass: bogey styles and gauges; monorail; paint pitcher components, NeoForge fluid
     handler, cannon splitting and the potato projectile; roller track replacement; Shadow Realm storage, commands,
-    persistence and the AddTrain codec. The fuel probe is skipped (Create port bug above).
+    persistence and the AddTrain codec. Also the fuel probe: block, block entity, mounted storage codec round trip, movement and liquid fuel draining.
   - `railways:railways_track_joins_create_network`: nine `railways:track_acacia` blocks form a Create track graph whose
     edges carry `railways:acacia`.
   - `railways:fuel_tank_takes_lava_not_water`: through NeoForge's `Capabilities.Fluid.BLOCK`, a fuel tank refuses
     water and takes 1000 mB of lava (81000 Create units).
-  - `create:water_wheel_drives_press` still passes.
+  - Create's own `water_wheel_drives_press` and `basin_fluid_survives_save` still pass; no block entity fails to save.
 - **Content.** 1489 blocks, 473 items and 3 entities in `en_us.json`.
 - **Not checked:** the client, trains actually running (assembly, fuel burn, couplers, conductors), and the full ZP5
   pack.
