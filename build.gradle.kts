@@ -12,7 +12,8 @@ plugins {
 }
 
 group = property("maven_group") as String
-version = "${property("mod_version")}+neoforge-mc${property("minecraft_version")}"
+// ZP5: NeoForge needs a Maven-style version; neoforge_mod_version mirrors mod_version (SNR.FLY-STABLE-x.y)
+version = property("neoforge_mod_version") as String
 
 base {
     archivesName.set(property("archives_base_name") as String)
@@ -66,6 +67,9 @@ neoForge {
         configureEach {
             systemProperty("neoforge.enabledGameTestNamespaces", "railways,create")
             logLevel = org.slf4j.event.Level.INFO
+            if (project.hasProperty("skipFuelChecks")) {
+                systemProperty("railways.skipFuelRuntimeChecks", "true")
+            }
             if (project.hasProperty("mixinDebug")) {
                 systemProperty("mixin.debug.verbose", "true")
                 systemProperty("mixin.debug.export", "true")
@@ -1069,6 +1073,13 @@ tasks.withType<JavaCompile>().configureEach {
 
 tasks.test {
     useJUnitPlatform()
+    // ZP5: upstream's unit tests run in Fabric's test environment (Fabric Loader, Fabric API, Fabric's mixin
+    // registration) and are not ported; the NeoForge port is checked by GameTests (neoforge.RailwaysGameTests)
+    enabled = false
+}
+
+tasks.named("compileTestJava") {
+    enabled = false
 }
 
 java {
@@ -1078,7 +1089,7 @@ java {
 }
 
 tasks.jar {
-    archiveFileName.set("${project.property("mod_version")}.jar")
+    archiveFileName.set("railways-neoforge-${project.property("minecraft_version")}-${project.version}.jar")
     from("LICENSE")
 }
 

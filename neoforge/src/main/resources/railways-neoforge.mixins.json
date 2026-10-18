@@ -4,7 +4,7 @@
   "package": "com.railwayteam.railways.neoforge.mixin",
   "compatibilityLevel": "JAVA_25",
   "mixins": [
-    "CreateRegisterMixin"
+    "BuiltInRegistriesMixin"
   ],
   "injectors": {
     "defaultRequire": 1

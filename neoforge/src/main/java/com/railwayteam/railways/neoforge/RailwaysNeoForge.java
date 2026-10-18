@@ -33,8 +33,8 @@ import net.neoforged.fml.event.lifecycle.FMLCommonSetupEvent;
  * Railways' content is not registered here. NeoForge freezes the vanilla registries before it constructs mods, so,
  * like Create Fly's own NeoForge port, Railways registers during vanilla bootstrap: blocks and fluids through Create's
  * {@code CreateRegisterPlugin} (a {@code META-INF/services} entry), everything else from
- * {@link com.railwayteam.railways.neoforge.mixin.CreateRegisterMixin}, which runs the Fabric initializer
- * ({@link com.railwayteam.railways.fabric.RailwaysImpl#onInitialize()}) right after {@code Create.register()}.
+ * {@link com.railwayteam.railways.neoforge.mixin.BuiltInRegistriesMixin}, which runs the Fabric initializer
+ * ({@link com.railwayteam.railways.fabric.RailwaysImpl#onInitialize()}) right after Create registers its own.
  * This class wires up what Fabric API did through callbacks.
  */
 @Mod(Railways.MOD_ID)
@@ -44,6 +44,7 @@ public class RailwaysNeoForge {
 		if (!RailwaysNeoForgeInit.isInitialized())
 			throw new IllegalStateException("Railways was not initialized during bootstrap; is Create Fly (NeoForge) installed?");
 		modBus.addListener(PacketSetImpl::registerPayloads);
+		RailwaysGameTests.register(modBus);
 		modBus.addListener(FMLCommonSetupEvent.class, event -> event.enqueueWork(RegistrationListeningImpl::flush));
 		RailwaysNeoForgeInit.MOD_BUS_TASKS.forEach(task -> task.accept(modBus));
 		RailwaysNeoForgeInit.MOD_BUS_TASKS.clear();

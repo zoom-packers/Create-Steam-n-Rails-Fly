@@ -19,20 +19,27 @@
 package com.railwayteam.railways.neoforge.mixin;
 
 import com.railwayteam.railways.neoforge.RailwaysNeoForgeInit;
-import com.zurrtum.create.Create;
+import net.minecraft.core.registries.BuiltInRegistries;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
- * NeoForge: Create Fly's NeoForge port registers its content from {@code BuiltInRegistries.freeze()} during vanilla
- * bootstrap, before NeoForge freezes the registries and constructs mods. Railways registers right after it, so its
- * items, block entities and entities exist (and can use Create's) before any mod constructor runs, as on Fabric.
+ * NeoForge: Create Fly's NeoForge port registers its content at the head of {@code BuiltInRegistries.freeze()} during
+ * vanilla bootstrap, before NeoForge freezes the registries and constructs mods. Railways registers right after it,
+ * just before the first registry is frozen, so its items, block entities and entities exist (and can use Create's)
+ * before any mod constructor runs, as on Fabric.
+ * <p>
+ * This cannot target {@code Create.register()} itself: Create's mixin plugin loads the {@code Create} class before
+ * other mods' mixins are prepared.
  */
-@Mixin(value = Create.class, remap = false)
-public class CreateRegisterMixin {
-	@Inject(method = "register()V", at = @At("TAIL"))
+@Mixin(BuiltInRegistries.class)
+public class BuiltInRegistriesMixin {
+	@Inject(
+		method = "freeze()V",
+		at = @At(value = "INVOKE", target = "Lnet/minecraft/core/Registry;freeze()Lnet/minecraft/core/Registry;", ordinal = 0)
+	)
 	private static void railways$register(CallbackInfo ci) {
 		RailwaysNeoForgeInit.initialize();
 	}

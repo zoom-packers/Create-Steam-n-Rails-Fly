@@ -43,7 +43,9 @@ public final class FuelRuntimeChecks {
     }
 
     public static void register() {
-        if (registered || !Utils.isDevEnv()) {
+        // ZP5: -Drailways.skipFuelRuntimeChecks skips these probes while the Create Fly NeoForge port's
+        // FluidInventory#setMaxSize stores an Optional in a 26.3 component patch (fluid stacks fail to encode)
+        if (registered || !Utils.isDevEnv() || Boolean.getBoolean("railways.skipFuelRuntimeChecks")) {
             return;
         }
         registered = true;
