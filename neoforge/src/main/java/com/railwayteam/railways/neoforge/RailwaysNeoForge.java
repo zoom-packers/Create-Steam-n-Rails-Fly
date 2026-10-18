@@ -46,7 +46,6 @@ public class RailwaysNeoForge {
 		modBus.addListener(PacketSetImpl::registerPayloads);
 		RailwaysGameTests.register(modBus);
 		modBus.addListener(FMLCommonSetupEvent.class, event -> event.enqueueWork(RegistrationListeningImpl::flush));
-		RailwaysNeoForgeInit.MOD_BUS_TASKS.forEach(task -> task.accept(modBus));
-		RailwaysNeoForgeInit.MOD_BUS_TASKS.clear();
+		RailwaysNeoForgeInit.bindModBus(modBus);
 	}
 }

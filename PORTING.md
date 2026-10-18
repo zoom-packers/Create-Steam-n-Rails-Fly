@@ -11,8 +11,8 @@ Checked on 2026-10-18 against Minecraft 26.3, NeoForge 26.3.0.89, Java 25.0.1 an
 | | |
 |---|---|
 | Mod id | `railways` (unchanged) |
-| Version | `1.4.0-zp5.2` (`neoforge_mod_version`; upstream's `mod_version` stays `SNR.FLY-STABLE-1.4`) |
-| Jar | `build/libs/railways-neoforge-26.3-1.4.0-zp5.2.jar` |
+| Version | `1.4.0-zp5.3` (`neoforge_mod_version`; upstream's `mod_version` stays `SNR.FLY-STABLE-1.4`) |
+| Jar | `build/libs/railways-neoforge-26.3-1.4.0-zp5.3.jar` |
 | License | LGPL-3.0-or-later (the `LICENSE` file; Modrinth lists GPL-3.0-only). Parts derive from Create (MIT), QSL (Apache-2.0), SecurityCraft (MIT), Neruina (MIT) and FramedBlocks (LGPL) |
 
 ## How the port is organised
@@ -104,6 +104,14 @@ to a `SoundInstance`, so verifying the entity class needed the client class (`No
 - `tools/find_client_leaks.py` lists the remaining `@Environment(CLIENT)` members in common classes (24 classes, e.g.
   `PacketSet`, `ConductorEntity`, `GenericCrossingBlock`). They only run on the client and do not break class loading;
   the checks below load every block, block entity and entity class on a stripped server.
+- **Neither the GameTest launcher nor a dedicated server constructs the client entrypoint**, so check a client too.
+  `railways-26.3-zp5.2` crashed every dev-environment client at mod construction: the dev-only paint-tint check in
+  `CRPaintFluidRendering` built a `FluidStack`, and on 26.3 the client binds fluid and item data components only when
+  it joins a world (`RegistryDataCollector`), so the stack threw `Components not bound yet`. Fixed in zp5.3: the check
+  runs on the first `ClientPlayerNetworkEvent.LoggingIn`. `RailwaysNeoForgeInit.onModBus` also used to queue tasks
+  forever once the common entrypoint had flushed them, so a task from the client entrypoint (the paint fluid model's
+  `RegisterFluidModelsEvent` listener) could be dropped. It now runs tasks right away once the bus is bound. Verified
+  in a full-pack client on 2026-10-19: title loading, then joining a world.
 - **The GameTest launcher keeps client classes on the classpath**, so `runGameTestServer` cannot catch this. Check a
   dedicated server with `runServer` (NeoForge's dev dist cleaner strips client classes like a real server) and run
   the GameTests there with `/test run railways:*` (over RCON from a script, since the dev server has no console).

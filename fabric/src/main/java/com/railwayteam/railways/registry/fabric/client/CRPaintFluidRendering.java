@@ -25,8 +25,10 @@ import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.level.material.FluidState;
+import net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent;
 import net.neoforged.neoforge.client.event.RegisterFluidModelsEvent;
 import net.neoforged.neoforge.client.fluid.FluidTintSource;
+import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.fluids.FluidStack;
 
 /**
@@ -37,6 +39,7 @@ import net.neoforged.neoforge.fluids.FluidStack;
 @Environment(EnvType.CLIENT)
 public final class CRPaintFluidRendering {
     private static final PaintTint TINT = new PaintTint();
+    private static boolean tintChecked;
 
     private CRPaintFluidRendering() {
     }
@@ -52,15 +55,23 @@ public final class CRPaintFluidRendering {
             CRFluids.PAINT.get()
         )));
 
-        if (Utils.isDevEnv()) {
-            FluidStack redPaint = new FluidStack(CRFluids.PAINT.get(), 1000);
-            redPaint.set(DataComponents.CUSTOM_DATA, CustomData.of(PaintFluid.setColor(new CompoundTag(), PalettesColor.RED)));
-            int expectedColor = 0xff000000 | PalettesColor.RED.getDiffuseColor();
-            if (TINT.colorAsStack(redPaint) != expectedColor) {
-                throw new IllegalStateException("Paint fluid component tint runtime check failed");
-            }
-            Railways.LOGGER.info("Paint fluid model and component-aware tint runtime check passed");
+        // A FluidStack needs the fluid's data components. On 26.3 the client binds them from the server's registry
+        // data when it joins a world, so the check can't run while the game loads
+        if (Utils.isDevEnv())
+            NeoForge.EVENT_BUS.addListener(ClientPlayerNetworkEvent.LoggingIn.class, event -> checkTint());
+    }
+
+    private static void checkTint() {
+        if (tintChecked)
+            return;
+        tintChecked = true;
+        FluidStack redPaint = new FluidStack(CRFluids.PAINT.get(), 1000);
+        redPaint.set(DataComponents.CUSTOM_DATA, CustomData.of(PaintFluid.setColor(new CompoundTag(), PalettesColor.RED)));
+        int expectedColor = 0xff000000 | PalettesColor.RED.getDiffuseColor();
+        if (TINT.colorAsStack(redPaint) != expectedColor) {
+            throw new IllegalStateException("Paint fluid component tint runtime check failed");
         }
+        Railways.LOGGER.info("Paint fluid model and component-aware tint runtime check passed");
     }
 
     private static class PaintTint implements FluidTintSource {

@@ -30,7 +30,8 @@ import java.util.function.Consumer;
  * mod event bus, which does not exist yet at that point, queues a task in {@link #onModBus}.
  */
 public final class RailwaysNeoForgeInit {
-	static final List<Consumer<IEventBus>> MOD_BUS_TASKS = new ArrayList<>();
+	private static final List<Consumer<IEventBus>> MOD_BUS_TASKS = new ArrayList<>();
+	private static IEventBus modBus;
 	private static boolean initialized;
 
 	private RailwaysNeoForgeInit() {
@@ -47,8 +48,20 @@ public final class RailwaysNeoForgeInit {
 		return initialized;
 	}
 
-	/** Runs the task with Railways' mod event bus once the mod is constructed. */
+	/**
+	 * Runs the task with Railways' mod event bus: right away once {@link RailwaysNeoForge} has handed the bus over,
+	 * otherwise when it does. The client entrypoint can be constructed before or after the common one.
+	 */
 	public static void onModBus(Consumer<IEventBus> task) {
-		MOD_BUS_TASKS.add(task);
+		if (modBus != null)
+			task.accept(modBus);
+		else
+			MOD_BUS_TASKS.add(task);
+	}
+
+	static void bindModBus(IEventBus bus) {
+		modBus = bus;
+		MOD_BUS_TASKS.forEach(task -> task.accept(bus));
+		MOD_BUS_TASKS.clear();
 	}
 }
